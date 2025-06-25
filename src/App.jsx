@@ -2,7 +2,7 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, addDoc, getDocs } from 'firebase/firestore';
-import { geminiApiKey } from './firebase.js'; // Ensure this works after fixing firebase.js
+import { geminiApiKey } from '/src/firebase.js'; // Ensure this works after fixing firebase.js
 
 // Rest of the code remains the same
 
