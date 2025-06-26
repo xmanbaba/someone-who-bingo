@@ -15,9 +15,9 @@ const firebaseConfig = {
   geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyANMkgevmn9i8mdRu_Pa0W-M4AI16rnOzI"
 };
 
-const app = initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig); // Ensure app is initialized
 // const analytics = getAnalytics(app); // Uncomment if using Analytics
 
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const auth = getAuth(app); // Export auth instance
+export const db = getFirestore(app); // Export db instance
 export const geminiApiKey = firebaseConfig.geminiApiKey; // Export the geminiApiKey
