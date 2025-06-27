@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Ensure Inter font is used throughout the app with a sensible fallback */
 body {
   font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Optional: Add smooth scrolling for anchor links if you plan to use them */
+html {
+  scroll-behavior: smooth;
 }

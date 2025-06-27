@@ -1,16 +1,16 @@
-import React, { useState, useCallback } from 'react';
-import { doc, updateDoc } from 'firebase/firestore'; 
+ import React, { useState, useCallback } from 'react';
+import { doc, updateDoc } from 'firebase/firestore';
 
-// Import the core logic handler
-import AuthAndGameHandler from './components/AuthAndGameHandler.jsx'; 
+// Import the core logic handler using absolute path
+import AuthAndGameHandler from '/src/components/AuthAndGameHandler.jsx';
 
-// Import all individual game stage components
-import LoginPage from './components/LoginPage.jsx'; 
-import AdminSetup from './components/AdminSetup.jsx'; 
-import WaitingRoom from './components/WaitingRoom.jsx'; 
-import PlayingGame from './components/PlayingGame.jsx'; 
-import SquareDetailsModal from './components/SquareDetailsModal.jsx'; 
-import Scoreboard from './components/Scoreboard.jsx'; 
+// Import all individual game stage components using absolute paths
+import LoginPage from '/src/components/LoginPage.jsx';
+import AdminSetup from '/src/components/AdminSetup.jsx';
+import WaitingRoom from '/src/components/WaitingRoom.jsx';
+import PlayingGame from '/src/components/PlayingGame.jsx';
+import SquareDetailsModal from '/src/components/SquareDetailsModal.jsx';
+import Scoreboard from '/src/components/Scoreboard.jsx';
 
 
 // Utility for displaying messages (This can be moved to a CommonUIComponents.jsx later if needed)
@@ -49,203 +49,205 @@ const App = () => {
     }, []);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 flex items-center justify-center p-4 font-inter">
-            <style>
-                {`
-                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-                .font-inter {
-                    font-family: 'Inter', sans-serif;
-                }
-                .font-inter-rounded {
-                    font-family: 'Inter', sans-serif;
-                    font-weight: 600;
-                    letter-spacing: -0.01em;
-                }
-                h1, h2, h3, h4 {
-                    font-weight: 700;
-                }
-                .animate-fade-in {
-                    animation: fadeIn 0.3s ease-out forwards;
-                }
-                .animate-fade-in-up {
-                    animation: fadeInUp 0.5s ease-out forwards;
-                }
-                .animate-scale-up {
-                    animation: scaleUp 0.3s ease-out forwards;
-                }
-                .animate-pulse {
-                    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-                }
-                @keyframes pulse {
-                    0%, 100% {
-                        opacity: 1;
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4 font-inter text-gray-900">
+            {/* Main content wrapper with max-width for desktop and centering */}
+            <div className="w-full max-w-screen-xl mx-auto lg:w-3/4"> {/* Added max-w-screen-xl and lg:w-3/4 */}
+                <style>
+                    {`
+                    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+                    .font-inter {
+                        font-family: 'Inter', sans-serif;
                     }
-                    50% {
-                        opacity: .7;
+                    .font-inter-rounded {
+                        font-family: 'Inter', sans-serif;
+                        font-weight: 600;
+                        letter-spacing: -0.01em;
                     }
-                }
-                .animate-bounce-slow {
-                    animation: bounceSlow 3s infinite ease-in-out;
-                }
-                @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                }
-                @keyframes fadeInUp {
-                    from { opacity: 0; transform: translateY(20px); }
-                    to { transform: translateY(0); }
-                }
-                @keyframes scaleUp {
-                    from { transform: scale(0.95); opacity: 0.8; }
-                    to { transform: scale(1); opacity: 1; }
-                }
-                @keyframes bounceSlow {
-                    0%, 100% { transform: translateY(0); }
-                    50% { transform: translateY(-10px); }
-                }
-                `}
-            </style>
-
-            {/* AuthAndGameHandler wraps the main application logic and provides state/handlers */}
-            <AuthAndGameHandler showMessageModal={showMessageModal}>
-                {({ currentUserId, isAdmin, gameId, gameData, playerData, gamePlayers, loading, isGeneratingAskMore, db, appId, geminiApiKey, handleAdminLogin, handleJoinGame, handleGameCreated, handleFinishGame, handleAskMore, handleBackToLogin }) => {
-
-                    // State for Square Details Modal (kept here for now, will move later if needed)
-                    // These states and their handlers are directly tied to the SquareDetailsModal logic
-                    // and will move with it in the CommonUIComponents.jsx extraction if appropriate.
-                    const [showSquareModal, setShowSquareModal] = useState(false);
-                    const [selectedSquareIndex, setSelectedSquareIndex] = useState(null);
-                    const [modalNames, setModalNames] = useState([]);
-                    const [modalNameInput, setModalNameInput] = useState('');
-
-                    // handleSquareClick and related modal functions will need access to playerData, db, appId, currentUserId
-                    const handleSquareClick = (index) => {
-                        if (playerData?.isSubmitted || gameData?.status !== 'playing') {
-                            showMessageModal("You cannot edit your card after submission or when the game is not playing.", 'error');
-                            return;
+                    h1, h2, h3, h4 {
+                        font-weight: 700;
+                    }
+                    .animate-fade-in {
+                        animation: fadeIn 0.3s ease-out forwards;
+                    }
+                    .animate-fade-in-up {
+                        animation: fadeInUp 0.5s ease-out forwards;
+                    }
+                    .animate-scale-up {
+                        animation: scaleUp 0.3s ease-out forwards;
+                    }
+                    .animate-pulse {
+                        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+                    }
+                    @keyframes pulse {
+                        0%, 100% {
+                            opacity: 1;
                         }
-                        setSelectedSquareIndex(index);
-                        const existingSquare = playerData?.checkedSquares?.find(s => s.index === index);
-                        setModalNames(existingSquare ? existingSquare.names : []);
-                        setModalNameInput('');
-                        setShowSquareModal(true);
-                    };
-
-                    const handleSaveSquareDetails = async () => {
-                        if (selectedSquareIndex === null || !db || !gameId || !currentUserId || !playerData) return;
-
-                        const updatedCheckedSquares = playerData.checkedSquares.filter(s => s.index !== selectedSquareIndex);
-                        if (modalNames.length > 0) {
-                            updatedCheckedSquares.push({ index: selectedSquareIndex, names: modalNames });
+                        50% {
+                            opacity: .7;
                         }
+                    }
+                    .animate-bounce-slow {
+                        animation: bounceSlow 3s infinite ease-in-out;
+                    }
+                    @keyframes fadeIn {
+                        from { opacity: 0; }
+                        to { opacity: 1; }
+                    }
+                    @keyframes fadeInUp {
+                        from { opacity: 0; transform: translateY(20px); }
+                        to { transform: translateY(0); }
+                    }
+                    @keyframes scaleUp {
+                        from { transform: scale(0.95); opacity: 0.8; }
+                        to { transform: scale(1); opacity: 1; }
+                    }
+                    @keyframes bounceSlow {
+                        0%, 100% { transform: translateY(0); }
+                        50% { transform: translateY(-10px); }
+                    }
+                    `}
+                </style>
 
-                        const newScore = updatedCheckedSquares.length;
+                {/* AuthAndGameHandler wraps the main application logic and provides state/handlers */}
+                <AuthAndGameHandler showMessageModal={showMessageModal}>
+                    {({ currentUserId, isAdmin, gameId, gameData, playerData, gamePlayers, loading, isGeneratingAskMore, db, appId, geminiApiKey, handleAdminLogin, handleJoinGame, handleGameCreated, handleFinishGame, handleAskMore, handleBackToLogin }) => {
 
-                        try {
-                            const playerDocRef = doc(db, `artifacts/${appId}/public/data/bingoGames/${gameId}/players`, currentUserId);
-                            await updateDoc(playerDocRef, {
-                                checkedSquares: updatedCheckedSquares,
-                                score: newScore,
-                            });
-                            showMessageModal("Square updated successfully!", 'success');
-                        } catch (error) {
-                            console.error("Error updating square:", error);
-                            showMessageModal(`Failed to update square: ${error.message}`, 'error');
-                        } finally {
-                            setShowSquareModal(false);
-                            setSelectedSquareIndex(null);
-                        }
-                    };
+                        // State for Square Details Modal (kept here for now, will move later if needed)
+                        // These states and their handlers are directly tied to the SquareDetailsModal logic
+                        // and will move with it in the CommonUIComponents.jsx extraction if appropriate.
+                        const [showSquareModal, setShowSquareModal] = useState(false);
+                        const [selectedSquareIndex, setSelectedSquareIndex] = useState(null);
+                        const [modalNames, setModalNames] = useState([]);
+                        const [modalNameInput, setModalNameInput] = useState('');
 
-                    const handleModalToggleCheck = () => {
-                        const isCurrentlyChecked = modalNames.length > 0;
-                        if (isCurrentlyChecked) {
-                            setModalNames([]); // If currently checked, uncheck by clearing names
-                        } else {
-                            setModalNames([]); // If currently unchecked, set to checked with empty names array
-                        }
-                    };
-
-                    const handleModalAddName = () => {
-                        const trimmedName = modalNameInput.trim();
-                        if (trimmedName && !modalNames.includes(trimmedName)) {
-                            setModalNames([...modalNames, trimmedName]);
+                        // handleSquareClick and related modal functions will need access to playerData, db, appId, currentUserId
+                        const handleSquareClick = (index) => {
+                            if (playerData?.isSubmitted || gameData?.status !== 'playing') {
+                                showMessageModal("You cannot edit your card after submission or when the game is not playing.", 'error');
+                                return;
+                            }
+                            setSelectedSquareIndex(index);
+                            const existingSquare = playerData?.checkedSquares?.find(s => s.index === index);
+                            setModalNames(existingSquare ? existingSquare.names : []);
                             setModalNameInput('');
-                        } else if (!trimmedName) {
-                            showMessageModal("Please enter a name to add.", 'error');
-                        } else if (modalNames.includes(trimmedName)) {
-                            showMessageModal("This name has already been added.", 'error');
-                        }
-                    };
+                            setShowSquareModal(true);
+                        };
 
-                    const handleModalRemoveName = (nameToRemove) => {
-                        setModalNames(modalNames.filter(name => name !== nameToRemove));
-                    };
+                        const handleSaveSquareDetails = async () => {
+                            if (selectedSquareIndex === null || !db || !gameId || !currentUserId || !playerData) return;
+
+                            const updatedCheckedSquares = playerData.checkedSquares.filter(s => s.index !== selectedSquareIndex);
+                            if (modalNames.length > 0) {
+                                updatedCheckedSquares.push({ index: selectedSquareIndex, names: modalNames });
+                            }
+
+                            const newScore = updatedCheckedSquares.length;
+
+                            try {
+                                const playerDocRef = doc(db, `artifacts/${appId}/public/data/bingoGames/${gameId}/players`, currentUserId);
+                                await updateDoc(playerDocRef, {
+                                    checkedSquares: updatedCheckedSquares,
+                                    score: newScore,
+                                });
+                                showMessageModal("Square updated successfully!", 'success');
+                            } catch (error) {
+                                console.error("Error updating square:", error);
+                                showMessageModal(`Failed to update square: ${error.message}`, 'error');
+                            } finally {
+                                setShowSquareModal(false);
+                                setSelectedSquareIndex(null);
+                            }
+                        };
+
+                        const handleModalToggleCheck = () => {
+                            const isCurrentlyChecked = modalNames.length > 0;
+                            if (isCurrentlyChecked) {
+                                setModalNames([]); // If currently checked, uncheck by clearing names
+                            } else {
+                                setModalNames([]); // If currently unchecked, set to checked with empty names array
+                            }
+                        };
+
+                        const handleModalAddName = () => {
+                            const trimmedName = modalNameInput.trim();
+                            if (trimmedName && !modalNames.includes(trimmedName)) {
+                                setModalNames([...modalNames, trimmedName]);
+                                setModalNameInput('');
+                            } else if (!trimmedName) {
+                                showMessageModal("Please enter a name to add.", 'error');
+                            } else if (modalNames.includes(trimmedName)) {
+                                showMessageModal("This name has already been added.", 'error');
+                            }
+                        };
+
+                        const handleModalRemoveName = (nameToRemove) => {
+                            setModalNames(modalNames.filter(name => name !== nameToRemove));
+                        };
 
 
-                    if (loading) {
-                        return (
-                            <div className="flex items-center justify-center min-h-screen bg-gray-100 font-inter">
-                                <div className="text-center text-gray-700 text-2xl font-semibold flex items-center font-inter-rounded">
-                                    <svg className="animate-spin -ml-1 mr-3 h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Loading App...
+                        if (loading) {
+                            return (
+                                <div className="flex items-center justify-center min-h-screen bg-blue-50 font-inter">
+                                    <div className="text-center text-gray-700 text-2xl font-semibold flex items-center font-inter-rounded">
+                                        <svg className="animate-spin -ml-1 mr-3 h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        Loading App...
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    }
+                            );
+                        }
 
-                    let currentView;
-                    if (!gameId && !isAdmin) {
-                        currentView = <LoginPage onAdminLogin={handleAdminLogin} onJoinGame={handleJoinGame} showError={showMessageModal} />;
-                    } else if (isAdmin && !gameId) {
-                        currentView = <AdminSetup onGameCreated={handleGameCreated} userId={currentUserId} db={db} appId={appId} showError={showMessageModal} geminiApiKey={geminiApiKey} />;
-                    } else if (gameId && gameData?.status === 'waiting') {
-                        currentView = <WaitingRoom game={gameData} players={gamePlayers} isAdmin={isAdmin} roomCode={gameId} db={db} appId={appId} showError={showMessageModal} onAskMore={handleAskMore} currentUserId={currentUserId} isGeneratingAskMore={isGeneratingAskMore} onBackToLogin={handleBackToLogin} showSuccess={showMessageModal} />;
-                    } else if (gameId && gameData?.status === 'playing' && playerData) {
-                        currentView = (
-                            <>
-                                <PlayingGame
-                                    game={gameData}
-                                    player={playerData}
-                                    onSquareClick={handleSquareClick}
-                                    gamePlayers={gamePlayers}
-                                    onFinishGame={handleFinishGame}
-                                    showError={showMessageModal}
-                                    onAskMore={handleAskMore}
-                                    isGeneratingAskMore={isGeneratingAskMore}
-                                    showSuccess={showMessageModal}
-                                    currentUserId={currentUserId}
-                                    db={db} // Pass db explicitly to PlayingGame
-                                    appId={appId} // Pass appId explicitly to PlayingGame
-                                />
-                                <SquareDetailsModal
-                                    show={showSquareModal}
-                                    onClose={() => setShowSquareModal(false)}
-                                    onSave={handleSaveSquareDetails}
-                                    question={gameData?.questions[selectedSquareIndex]}
-                                    currentNames={modalNames}
-                                    isChecked={modalNames.length > 0} // Determine if checked based on names presence
-                                    onToggleCheck={handleModalToggleCheck}
-                                    onAddName={handleModalAddName}
-                                    onRemoveName={handleModalRemoveName}
-                                    nameInput={modalNameInput}
-                                    onNameInputChange={(e) => setModalNameInput(e.target.value)}
-                                />
-                            </>
-                        );
-                    } else if (gameId && (gameData?.status === 'scoring' || gameData?.status === 'ended')) {
-                        currentView = <Scoreboard game={gameData} players={gamePlayers} isAdmin={isAdmin} onBackToLogin={handleBackToLogin} onPlayAgain={handleAdminLogin} currentUserId={currentUserId} showSuccess={showMessageModal} showError={showMessageModal} db={db} appId={appId} />;
-                    } else {
-                        currentView = <LoginPage onAdminLogin={handleAdminLogin} onJoinGame={handleJoinGame} showError={showMessageModal} />;
-                    }
+                        let currentView;
+                        if (!gameId && !isAdmin) {
+                            currentView = <LoginPage onAdminLogin={handleAdminLogin} onJoinGame={handleJoinGame} showError={showMessageModal} />;
+                        } else if (isAdmin && !gameId) {
+                            currentView = <AdminSetup onGameCreated={handleGameCreated} userId={currentUserId} db={db} appId={appId} showError={showMessageModal} geminiApiKey={geminiApiKey} />;
+                        } else if (gameId && gameData?.status === 'waiting') {
+                            currentView = <WaitingRoom game={gameData} players={gamePlayers} isAdmin={isAdmin} roomCode={gameId} db={db} appId={appId} showError={showMessageModal} onAskMore={handleAskMore} currentUserId={currentUserId} isGeneratingAskMore={isGeneratingAskMore} onBackToLogin={handleBackToLogin} showSuccess={showMessageModal} />;
+                        } else if (gameId && gameData?.status === 'playing' && playerData) {
+                            currentView = (
+                                <>
+                                    <PlayingGame
+                                        game={gameData}
+                                        player={playerData}
+                                        onSquareClick={handleSquareClick}
+                                        gamePlayers={gamePlayers}
+                                        onFinishGame={handleFinishGame}
+                                        showError={showMessageModal}
+                                        onAskMore={handleAskMore}
+                                        isGeneratingAskMore={isGeneratingAskMore}
+                                        showSuccess={showMessageModal}
+                                        currentUserId={currentUserId}
+                                        db={db} // Pass db explicitly to PlayingGame
+                                        appId={appId} // Pass appId explicitly to PlayingGame
+                                    />
+                                    <SquareDetailsModal
+                                        show={showSquareModal}
+                                        onClose={() => setShowSquareModal(false)}
+                                        onSave={handleSaveSquareDetails}
+                                        question={gameData?.questions[selectedSquareIndex]}
+                                        currentNames={modalNames}
+                                        isChecked={modalNames.length > 0} // Determine if checked based on names presence
+                                        onToggleCheck={handleModalToggleCheck}
+                                        onAddName={handleModalAddName}
+                                        onRemoveName={handleModalRemoveName}
+                                        nameInput={modalNameInput}
+                                        onNameInputChange={(e) => setModalNameInput(e.target.value)}
+                                    />
+                                </>
+                            );
+                        } else if (gameId && (gameData?.status === 'scoring' || gameData?.status === 'ended')) {
+                            currentView = <Scoreboard game={gameData} players={gamePlayers} isAdmin={isAdmin} onBackToLogin={handleBackToLogin} onPlayAgain={handleAdminLogin} currentUserId={currentUserId} showSuccess={showMessageModal} showError={showMessageModal} db={db} appId={appId} />;
+                        } else {
+                            currentView = <LoginPage onAdminLogin={handleAdminLogin} onJoinGame={handleJoinGame} showError={showMessageModal} />;
+                        }
 
-                    return currentView;
-                }}
-            </AuthAndGameHandler>
-
+                        return currentView;
+                    }}
+                </AuthAndGameHandler>
+            </div> {/* End of main content wrapper */}
             <MessageModal message={message} type={messageType} onClose={() => setMessage(null)} />
         </div>
     );
