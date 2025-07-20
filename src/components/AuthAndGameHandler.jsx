@@ -45,7 +45,6 @@ const firebaseConfig = {
 const geminiApiKey = "AIzaSyANMkgevmn9i8mdRu_Pa0W-M4AI16rnOzI"; // <--- REPLACE THIS with your actual Gemini API Key
 
 
-// Initialize Firebase App globally for this component
 const AuthAndGameHandler = ({ children, showMessageModal }) => {
     const [db, setDb] = useState(null); 
     const [auth, setAuth] = useState(null);
@@ -74,16 +73,16 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
                 const firebaseAuth = getAuth(app);
                 setDb(firestoreDb);
                 setAuth(firebaseAuth);
-                console.log("AuthAndGameHandler: Firebase Auth object initialized:", firebaseAuth); // DEBUG LOG
+                console.log("AuthAndGameHandler (Init): Firebase Auth object initialized:", firebaseAuth); 
 
                 // Listen for auth state changes
                 const unsubscribeAuth = onAuthStateChanged(firebaseAuth, (user) => {
                     if (user) {
                         setCurrentUserId(user.uid);
-                        console.log("AuthAndGameHandler: User authenticated, UID:", user.uid); // DEBUG LOG
+                        console.log("AuthAndGameHandler (Auth State): User authenticated, UID:", user.uid); 
                     } else {
-                        setCurrentUserId(null); // Clear user ID if logged out
-                        console.log("AuthAndGameHandler: User not authenticated (null UID)"); // DEBUG LOG
+                        setCurrentUserId(null); 
+                        console.log("AuthAndGameHandler (Auth State): User not authenticated (null UID)"); 
                     }
                     setLoading(false); 
                 });
@@ -288,6 +287,12 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         );
     }
 
+    // DEBUG LOGS: Check the values being passed to children
+    console.log("AuthAndGameHandler (Passing Props): auth is", auth);
+    console.log("AuthAndGameHandler (Passing Props): typeof createUserWithEmailAndPassword(auth, email, password) is", typeof createUserWithEmailAndPassword);
+    console.log("AuthAndGameHandler (Passing Props): typeof signInWithEmailAndPassword(auth, email, password) is", typeof signInWithEmailAndPassword);
+
+
     return (
         <>
             {children({
@@ -309,6 +314,7 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
                 handleBackToLogin,
                 auth, 
                 // Pass Firebase Auth functions directly, ensuring they are bound to the auth instance
+                // This is the correct way to pass them for direct use in AuthScreen
                 createUserWithEmailAndPassword: (email, password) => createUserWithEmailAndPassword(auth, email, password),
                 signInWithEmailAndPassword: (email, password) => signInWithEmailAndPassword(auth, email, password),
                 signOut: () => signOut(auth), 
