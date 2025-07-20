@@ -91,7 +91,7 @@ const LoginPage = ({
               className="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300 transition duration-300 ease-in-out bg-white placeholder-gray-400 font-inter-rounded"
               placeholder="e.g., ABCDE"
               value={roomCode}
-              onChange={(e) => setRoomCode(e.target.value.toUpperCase())} // Ensure uppercase for room code
+              onChange={(e) => setRoomCode(e.target.value)} // Ensure uppercase for room code
               required
             />
           </div>
