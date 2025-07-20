@@ -1,10 +1,12 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react"; // Added useEffect
 import { doc, updateDoc } from "firebase/firestore";
 
 // Import the core logic handler
 import AuthAndGameHandler from "/src/components/AuthAndGameHandler.jsx";
 
 // Import all individual game stage components
+import AuthScreen from "/src/components/AuthScreen.jsx"; // New: Import AuthScreen
+import LandingPage from "/src/components/LandingPage.jsx";
 import LoginPage from "/src/components/LoginPage.jsx";
 import AdminSetup from "/src/components/AdminSetup.jsx";
 import WaitingRoom from "/src/components/WaitingRoom.jsx";
@@ -45,11 +47,51 @@ const MessageModal = ({ message, type, onClose }) => {
 const App = () => {
   const [message, setMessage] = useState(null);
   const [messageType, setMessageType] = useState("info");
+  const [selectedRole, setSelectedRole] = useState(null); // 'player', 'admin', or null
+  const [isAdminState, setIsAdminState] = useState(false); // New state to manage admin role based on user selection
 
   const showMessageModal = useCallback((msg, type) => {
     setMessage(msg);
     setMessageType(type);
   }, []);
+
+  // Callback for LandingPage to set the selected role
+  const handleSelectRole = useCallback((role) => {
+    setSelectedRole(role);
+    setIsAdminState(role === "admin"); // Set isAdminState based on role selection
+  }, []);
+
+  // Callback to go back to role selection (from AdminSetup or LoginPage)
+  const handleBackToRoleSelection = useCallback(() => {
+    setSelectedRole(null);
+    setIsAdminState(false); // Reset admin state
+    // Also clear game-related states if user goes back to role selection
+    // This will be handled by AuthAndGameHandler's handleBackToLogin
+  }, []);
+
+  // Callback for AuthScreen after successful login/signup
+  const handleAuthSuccess = useCallback(() => {
+    // After successful authentication, automatically transition to role selection
+    setSelectedRole(null); // Ensure role selection is shown
+  }, []);
+
+  // Callback for signing out
+  const handleSignOut = useCallback(
+    async (signOutFirebase) => {
+      try {
+        await signOutFirebase(); // Call Firebase signOut function passed from AuthAndGameHandler
+        showMessageModal("Logged out successfully!", "success");
+        setSelectedRole(null); // Reset role selection
+        setIsAdminState(false); // Reset admin state
+        // AuthAndGameHandler's onAuthStateChanged will handle clearing currentUserId
+        // handleBackToLogin will clear game-related states
+      } catch (error) {
+        console.error("Error signing out:", error);
+        showMessageModal(`Failed to log out: ${error.message}`, "error");
+      }
+    },
+    [showMessageModal]
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4 font-inter text-gray-900">
@@ -112,12 +154,9 @@ const App = () => {
         </style>
 
         {/* AuthAndGameHandler wraps the main application logic and provides state/handlers */}
-        {/* The 'children' prop is explicitly passed as a function here */}
         <AuthAndGameHandler showMessageModal={showMessageModal}>
           {({
-            // This is the function that becomes the 'children' prop
             currentUserId,
-            isAdmin,
             gameId,
             gameData,
             playerData,
@@ -134,6 +173,9 @@ const App = () => {
             handleAskMore,
             handleBackToLogin,
             auth,
+            createUserWithEmailAndPassword,
+            signInWithEmailAndPassword,
+            signOut,
           }) => {
             // State for Square Details Modal
             const [showSquareModal, setShowSquareModal] = useState(false);
@@ -261,15 +303,21 @@ const App = () => {
             }
 
             let currentView;
-            if (!gameId && !isAdmin) {
+            // New logic to determine which component to render based on authentication and selected role
+            if (!currentUserId) {
+              // If not authenticated, show AuthScreen
               currentView = (
-                <LoginPage
-                  onAdminLogin={handleAdminLogin}
-                  onJoinGame={handleJoinGame}
-                  showError={showMessageModal}
+                <AuthScreen
+                  auth={auth}
+                  showMessageModal={showMessageModal}
+                  onAuthSuccess={handleAuthSuccess}
                 />
               );
-            } else if (isAdmin && !gameId) {
+            } else if (selectedRole === null) {
+              // If authenticated but role not selected, show LandingPage
+              currentView = <LandingPage onSelectRole={handleSelectRole} />;
+            } else if (selectedRole === "admin" && !gameId) {
+              // Authenticated admin, no game created yet
               currentView = (
                 <AdminSetup
                   onGameCreated={handleGameCreated}
@@ -278,6 +326,19 @@ const App = () => {
                   appId={appId}
                   showError={showMessageModal}
                   geminiApiKey={geminiApiKey}
+                  onBackToRoleSelection={handleBackToRoleSelection}
+                  onSignOut={() => handleSignOut(signOut)}
+                />
+              );
+            } else if (selectedRole === "player" && !gameId) {
+              // Authenticated player, not joined a game yet
+              currentView = (
+                <LoginPage
+                  onAdminLogin={handleAdminLogin}
+                  onJoinGame={handleJoinGame}
+                  showError={showMessageModal}
+                  onBackToRoleSelection={handleBackToRoleSelection}
+                  onSignOut={() => handleSignOut(signOut)}
                 />
               );
             } else if (gameId && gameData?.status === "waiting") {
@@ -285,7 +346,7 @@ const App = () => {
                 <WaitingRoom
                   game={gameData}
                   players={gamePlayers}
-                  isAdmin={isAdmin}
+                  isAdmin={isAdminState}
                   roomCode={gameId}
                   db={db}
                   appId={appId}
@@ -295,6 +356,8 @@ const App = () => {
                   isGeneratingAskMore={isGeneratingAskMore}
                   onBackToLogin={handleBackToLogin}
                   showSuccess={showMessageModal}
+                  onBackToRoleSelection={handleBackToRoleSelection}
+                  onSignOut={() => handleSignOut(signOut)}
                 />
               );
             } else if (gameId && gameData?.status === "playing" && playerData) {
@@ -313,6 +376,8 @@ const App = () => {
                     currentUserId={currentUserId}
                     db={db}
                     appId={appId}
+                    onBackToRoleSelection={handleBackToRoleSelection}
+                    onSignOut={() => handleSignOut(signOut)}
                   />
                   <SquareDetailsModal
                     show={showSquareModal}
@@ -337,7 +402,7 @@ const App = () => {
                 <Scoreboard
                   game={gameData}
                   players={gamePlayers}
-                  isAdmin={isAdmin}
+                  isAdmin={isAdminState}
                   onBackToLogin={handleBackToLogin}
                   onPlayAgain={handleAdminLogin}
                   currentUserId={currentUserId}
@@ -345,14 +410,17 @@ const App = () => {
                   showError={showMessageModal}
                   db={db}
                   appId={appId}
+                  onBackToRoleSelection={handleBackToRoleSelection}
+                  onSignOut={() => handleSignOut(signOut)}
                 />
               );
             } else {
+              // Fallback to AuthScreen if state is unexpected (e.g., game ended, but user still authenticated)
               currentView = (
-                <LoginPage
-                  onAdminLogin={handleAdminLogin}
-                  onJoinGame={handleJoinGame}
-                  showError={showMessageModal}
+                <AuthScreen
+                  auth={auth}
+                  showMessageModal={showMessageModal}
+                  onAuthSuccess={handleAuthSuccess}
                 />
               );
             }
@@ -370,4 +438,4 @@ const App = () => {
   );
 };
 
- export default App;
+export default App;

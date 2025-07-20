@@ -1,7 +1,27 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, doc, addDoc, setDoc, updateDoc, onSnapshot, collection, query, where, getDocs, getDoc,documentId } from 'firebase/firestore';
+import {
+  getAuth,
+  onAuthStateChanged,
+  signInWithCustomToken,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+} from "firebase/auth";
+import {
+  getFirestore,
+  doc,
+  addDoc,
+  setDoc,
+  updateDoc,
+  onSnapshot,
+  collection,
+  query,
+  where,
+  getDocs,
+  getDoc,
+  documentId,
+} from "firebase/firestore"; 
 
 // ====================================================================================================
 // IMPORTANT: FOR LOCAL DEVELOPMENT (e.g., in VS Code)
@@ -26,24 +46,15 @@ const geminiApiKey = "AIzaSyANMkgevmn9i8mdRu_Pa0W-M4AI16rnOzI"; // <--- REPLACE 
 
 
 // Initialize Firebase App globally for this component
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
-
-// Default app ID for Firestore paths.
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-
-// AuthAndGameHandler Component: Manages authentication and core game state
 const AuthAndGameHandler = ({ children, showMessageModal }) => {
   const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  // isAdmin state is now managed by App.jsx based on role selection, not here
   const [gameId, setGameId] = useState(null);
   const [gameData, setGameData] = useState(null);
   const [playerData, setPlayerData] = useState(null);
-  const [gamePlayers, setGamePlayers] = useState([]);
+  const [gamePlayers, setGamePlayers] = useState([]); // Initialized as array
   const [loading, setLoading] = useState(true);
   const [isGeneratingAskMore, setIsGeneratingAskMore] = useState(false);
 
@@ -66,42 +77,14 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         setAuth(firebaseAuth);
 
         // Listen for auth state changes
-        const unsubscribeAuth = onAuthStateChanged(
-          firebaseAuth,
-          async (user) => {
-            if (user) {
-              setCurrentUserId(user.uid);
-              // Check if the user is an admin based on their UID (e.g., a predefined admin UID)
-              // For now, let's assume the first user to create a game is the admin, or a specific UID
-              // This needs to be more robust for production (e.g., admin role stored in Firestore)
-              // For testing, we can hardcode an admin UID or use a simple flag.
-              // For now, isAdmin is set by handleAdminLogin.
-            } else {
-              // Sign in anonymously if no user is logged in
-              try {
-                // Use __initial_auth_token if available (from Canvas environment)
-                if (
-                  typeof __initial_auth_token !== "undefined" &&
-                  __initial_auth_token
-                ) {
-                  await signInWithCustomToken(
-                    firebaseAuth,
-                    __initial_auth_token
-                  );
-                } else {
-                  await signInAnonymously(firebaseAuth);
-                }
-              } catch (error) {
-                console.error("Error signing in anonymously:", error);
-                showMessageModal(
-                  `Authentication failed: ${error.message}`,
-                  "error"
-                );
-              }
-            }
-            setLoading(false); // Authentication state is ready
+        const unsubscribeAuth = onAuthStateChanged(firebaseAuth, (user) => {
+          if (user) {
+            setCurrentUserId(user.uid);
+          } else {
+            setCurrentUserId(null); // Clear user ID if logged out
           }
-        );
+          setLoading(false); // Authentication state is ready
+        });
 
         return () => {
           unsubscribeAuth(); // Clean up auth listener
@@ -119,13 +102,12 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     };
 
     initializeFirebase();
-  }, [showMessageModal]); // Dependency on showMessageModal to avoid stale closure
+  }, [showMessageModal]);
 
   // Effect for real-time game data listener
   useEffect(() => {
     if (!db || !gameId || !currentUserId) return;
 
-    // Unsubscribe from previous listeners if gameId changes
     if (gameUnsubscribeRef.current) gameUnsubscribeRef.current();
     if (playersUnsubscribeRef.current) playersUnsubscribeRef.current();
 
@@ -140,7 +122,6 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           setGameData({ id: docSnap.id, ...data });
-          // If game status becomes 'ended' or 'scoring', ensure timer is stopped
           if (data.status === "ended" || data.status === "scoring") {
             // Logic to stop timer would be in PlayingGame, but ensure state reflects
           }
@@ -149,12 +130,11 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
           setGameId(null);
           setGameData(null);
           setPlayerData(null);
-          setGamePlayers([]);
+          setGamePlayers([]); // Reset players to empty array
           showMessageModal(
             "The game you were in no longer exists or has ended.",
             "info"
           );
-          setIsAdmin(false); // Reset admin state if game disappears
         }
       },
       (error) => {
@@ -184,17 +164,15 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
       }
     );
 
-    // Cleanup function for this effect
     return () => {
       if (gameUnsubscribeRef.current) gameUnsubscribeRef.current();
       if (playersUnsubscribeRef.current) playersUnsubscribeRef.current();
     };
   }, [db, gameId, currentUserId, appId, showMessageModal]);
 
-  // Admin login handler (sets isAdmin true and clears gameId to go to AdminSetup)
+  // handleAdminLogin is now a placeholder, actual admin role is selected in App.jsx
   const handleAdminLogin = () => {
-    setIsAdmin(true);
-    setGameId(null); // Clear gameId to ensure AdminSetup is shown
+    setGameId(null);
     setGameData(null);
     setPlayerData(null);
     setGamePlayers([]);
@@ -211,15 +189,14 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     }
 
     try {
-      // Query for the game document using the roomCode
-      const gameDocRef = doc(
-        db,
-        `artifacts/${appId}/public/data/bingoGames`,
-        roomCode
+      // Query for the game document using the roomCode (documentId is correctly imported)
+      const gameQuery = query(
+        collection(db, `artifacts/${appId}/public/data/bingoGames`),
+        where(documentId(), "==", roomCode)
       );
-      const gameDocSnap = await getDoc(gameDocRef);
+      const gameSnapshot = await getDocs(gameQuery);
 
-      if (!gameDocSnap.exists()) {
+      if (gameSnapshot.empty) {
         showMessageModal(
           "Game not found with this code. Please check the code or try again.",
           "error"
@@ -227,9 +204,8 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         return;
       }
 
-      const gameDataFound = { id: gameDocSnap.id, ...gameDocSnap.data() };
-
-      
+      const gameDoc = gameSnapshot.docs[0]; // Access the first document from the snapshot
+      const gameDataFound = { id: gameDoc.id, ...gameDoc.data() };
 
       if (
         gameDataFound.status !== "waiting" &&
@@ -244,9 +220,7 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
 
       setGameId(gameDataFound.id);
       setGameData(gameDataFound);
-      setIsAdmin(false); // Ensure player is not marked as admin
 
-      // Add player to the game's subcollection if not already there
       const playerDocRef = doc(
         db,
         `artifacts/${appId}/public/data/bingoGames/${gameDataFound.id}/players`,
@@ -268,7 +242,6 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
           "success"
         );
       } else {
-        // Update player's name and icebreaker if they already exist (e.g., rejoining)
         await updateDoc(playerDocRef, {
           name: playerName,
           icebreaker: icebreaker,
@@ -288,7 +261,6 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
   const handleGameCreated = (newGameId, initialGameData) => {
     setGameId(newGameId);
     setGameData(initialGameData);
-    setIsAdmin(true); // Ensure admin status is maintained
     showMessageModal(`Game created with code: ${newGameId}`, "success");
   };
 
@@ -297,8 +269,7 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     (isTimeUp) => {
       if (!db || !gameId || !gameData) return;
 
-      // If it's time up and current user is admin, change status to scoring
-      if (isTimeUp && isAdmin && gameData.status === "playing") {
+      if (isTimeUp && gameData.status === "playing") {
         const gameRef = doc(
           db,
           `artifacts/${appId}/public/data/bingoGames`,
@@ -306,15 +277,13 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         );
         updateDoc(gameRef, {
           status: "scoring",
-          scoringEndTime: Date.now() + 5 * 60 * 1000, // 5 minutes for scoring
+          scoringEndTime: Date.now() + 5 * 60 * 1000,
         }).catch((error) =>
           console.error("Error setting scoring status:", error)
         );
       }
-      // Transition to scoreboard regardless if time is up or manually submitted
-      // The game state listener will pick up the 'scoring' or 'ended' status
     },
-    [db, gameId, gameData, isAdmin, appId]
+    [db, gameId, gameData, appId]
   );
 
   // Handler for AI "Ask More" feature
@@ -323,7 +292,6 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     const prompt = `Generate a fun, open-ended follow-up question for a networking bingo icebreaker.
         The person's icebreaker is: "${playerToAsk.icebreaker}".
         The question should encourage further conversation based on their icebreaker.
-        Example: If icebreaker is "Loves to pet dogs!", a question could be "What's your favorite dog breed and why?"
         Output only the question, nothing else.`;
 
     let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
@@ -373,42 +341,55 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     setGameData(null);
     setPlayerData(null);
     setGamePlayers([]);
-    setIsAdmin(false); // Reset admin status
+    showMessageModal("You have exited the game.", "info");
     // Unsubscribe from any active game/player listeners
     if (gameUnsubscribeRef.current) gameUnsubscribeRef.current();
     if (playersUnsubscribeRef.current) playersUnsubscribeRef.current();
   };
 
+  // Safety check: Ensure children is a function before attempting to call it
+  if (typeof children !== "function") {
+    console.error(
+      "AuthAndGameHandler: Expected 'children' to be a function, but received:",
+      typeof children,
+      children
+    );
+    showMessageModal("Application error: Please refresh the page.", "error");
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-red-100 text-red-800 font-bold text-xl p-4 text-center">
+        An unexpected error occurred. Please refresh your browser.
+      </div>
+    );
+  }
+
   return (
     <>
-      {/* Conditional rendering for children: only call if it's a function */}
-      {typeof children === "function" ? (
-        children({
-          currentUserId,
-          isAdmin,
-          gameId,
-          gameData,
-          playerData,
-          gamePlayers,
-          loading,
-          isGeneratingAskMore,
-          db,
-          appId,
-          geminiApiKey,
-          handleAdminLogin,
-          handleJoinGame,
-          handleGameCreated,
-          handleFinishGame,
-          handleAskMore,
-          handleBackToLogin,
-          auth,
-        })
-      ) : (
-        <div className="flex items-center justify-center min-h-screen bg-red-100 text-red-800 font-bold text-xl p-4 text-center">
-          Application error: Expected content not found. Please refresh your
-          browser.
-        </div>
-      )}
+      {children({
+        currentUserId,
+        // isAdmin is now managed by App.jsx
+        gameId,
+        gameData,
+        playerData,
+        gamePlayers,
+        loading,
+        isGeneratingAskMore,
+        db,
+        appId,
+        geminiApiKey,
+        handleAdminLogin,
+        handleJoinGame,
+        handleGameCreated,
+        handleFinishGame,
+        handleAskMore,
+        handleBackToLogin,
+        auth,
+        // Pass Firebase Auth functions directly
+        createUserWithEmailAndPassword: (email, password) =>
+          createUserWithEmailAndPassword(auth, email, password),
+        signInWithEmailAndPassword: (email, password) =>
+          signInWithEmailAndPassword(auth, email, password),
+        signOut: () => signOut(auth), // Pass signOut function
+      })}
     </>
   );
 };
