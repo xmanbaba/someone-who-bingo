@@ -309,6 +309,10 @@ const App = () => {
               currentView = (
                 <AuthScreen
                   auth={auth}
+                  createUserWithEmailAndPassword={
+                    createUserWithEmailAndPassword
+                  }
+                  signInWithEmailAndPassword={signInWithEmailAndPassword}
                   showMessageModal={showMessageModal}
                   onAuthSuccess={handleAuthSuccess}
                 />
@@ -419,6 +423,10 @@ const App = () => {
               currentView = (
                 <AuthScreen
                   auth={auth}
+                  createUserWithEmailAndPassword={
+                    createUserWithEmailAndPassword
+                  }
+                  signInWithEmailAndPassword={signInWithEmailAndPassword}
                   showMessageModal={showMessageModal}
                   onAuthSuccess={handleAuthSuccess}
                 />
