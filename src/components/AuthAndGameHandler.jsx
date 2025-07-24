@@ -86,14 +86,14 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
       }
     };
 
-    initializeFirebase();
-  }, [showMessageModal]);
+        initializeFirebase();
+    }, [showMessageModal]); 
 
   useEffect(() => {
     if (!db || !gameId || !currentUserId) return;
 
-    if (gameUnsubscribeRef.current) gameUnsubscribeRef.current();
-    if (playersUnsubscribeRef.current) playersUnsubscribeRef.current();
+        if (gameUnsubscribeRef.current) gameUnsubscribeRef.current();
+        if (playersUnsubscribeRef.current) playersUnsubscribeRef.current();
 
     const gameDocRef = doc(
       db,
@@ -124,32 +124,22 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
       }
     );
 
-    const playersCollectionRef = collection(
-      db,
-      `artifacts/${appId}/public/data/bingoGames/${gameId}/players`
-    );
-    playersUnsubscribeRef.current = onSnapshot(
-      playersCollectionRef,
-      (snapshot) => {
-        const playersList = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setGamePlayers(playersList);
-        const currentPlayer = playersList.find((p) => p.id === currentUserId);
-        setPlayerData(currentPlayer);
-      },
-      (error) => {
-        console.error("Error listening to players collection:", error);
-        showMessageModal(`Error loading players: ${error.message}`, "error");
-      }
-    );
+        const playersCollectionRef = collection(db, `artifacts/${appId}/public/data/bingoGames/${gameId}/players`);
+        playersUnsubscribeRef.current = onSnapshot(playersCollectionRef, (snapshot) => {
+            const playersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setGamePlayers(playersList);
+            const currentPlayer = playersList.find(p => p.id === currentUserId);
+            setPlayerData(currentPlayer);
+        }, (error) => {
+            console.error("Error listening to players collection:", error);
+            showMessageModal(`Error loading players: ${error.message}`, 'error');
+        });
 
-    return () => {
-      if (gameUnsubscribeRef.current) gameUnsubscribeRef.current();
-      if (playersUnsubscribeRef.current) playersUnsubscribeRef.current();
-    };
-  }, [db, gameId, currentUserId, appId, showMessageModal]);
+        return () => {
+            if (gameUnsubscribeRef.current) gameUnsubscribeRef.current();
+            if (playersUnsubscribeRef.current) playersUnsubscribeRef.current();
+        };
+    }, [db, gameId, currentUserId, appId, showMessageModal]);
 
   const handleAdminLogin = () => {
     setGameId(null);
@@ -174,66 +164,48 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
       );
       const gameSnapshot = await getDocs(gameQuery);
 
-      if (gameSnapshot.empty) {
-        showMessageModal(
-          "Game not found with this code. Please check the code or try again.",
-          "error"
-        );
-        return;
-      }
+            if (gameSnapshot.empty) {
+                showMessageModal("Game not found with this code. Please check the code or try again.", 'error');
+                return;
+            }
 
       const gameDoc = gameSnapshot.docs[0];
       const gameDataFound = { id: gameDoc.id, ...gameDoc.data() };
 
-      if (
-        gameDataFound.status !== "waiting" &&
-        gameDataFound.status !== "playing"
-      ) {
-        showMessageModal(
-          "This game is not in a joinable state (e.g., it might be over).",
-          "error"
-        );
-        return;
-      }
+            if (gameDataFound.status !== 'waiting' && gameDataFound.status !== 'playing') {
+                showMessageModal("This game is not in a joinable state (e.g., it might be over).", 'error');
+                return;
+            }
 
-      setGameId(gameDataFound.id);
-      setGameData(gameDataFound);
+            setGameId(gameDataFound.id);
+            setGameData(gameDataFound);
 
-      const playerDocRef = doc(
-        db,
-        `artifacts/${appId}/public/data/bingoGames/${gameDataFound.id}/players`,
-        currentUserId
-      );
-      const playerDocSnap = await getDoc(playerDocRef);
+            const playerDocRef = doc(db, `artifacts/${appId}/public/data/bingoGames/${gameDataFound.id}/players`, currentUserId);
+            const playerDocSnap = await getDoc(playerDocRef);
 
-      if (!playerDocSnap.exists()) {
-        await setDoc(playerDocRef, {
-          name: playerName,
-          checkedSquares: [],
-          submissionTime: null,
-          isSubmitted: false,
-          score: 0,
-          icebreaker: icebreaker,
-        });
-        showMessageModal(
-          `Joined game ${gameDataFound.id} as ${playerName}!`,
-          "success"
-        );
-      } else {
-        await updateDoc(playerDocRef, {
-          name: playerName,
-          icebreaker: icebreaker,
-        });
-        showMessageModal(
-          `Rejoined game ${gameDataFound.id} as ${playerName}!`,
-          "success"
-        );
-      }
-    } catch (error) {
-      console.error("Error joining game:", error);
-      showMessageModal(`Failed to join game: ${error.message}`, "error");
-    }
-  };
+            if (!playerDocSnap.exists()) {
+                await setDoc(playerDocRef, {
+                    name: playerName,
+                    checkedSquares: [], 
+                    submissionTime: null,
+                    isSubmitted: false,
+                    score: 0,
+                    icebreaker: icebreaker,
+                });
+                showMessageModal(`Joined game ${gameDataFound.id} as ${playerName}!`, 'success');
+            } else {
+                await updateDoc(playerDocRef, {
+                    name: playerName,
+                    icebreaker: icebreaker,
+                });
+                showMessageModal(`Rejoined game ${gameDataFound.id} as ${playerName}!`, 'success');
+            }
+
+        } catch (error) {
+            console.error("Error joining game:", error);
+            showMessageModal(`Failed to join game: ${error.message}`, 'error');
+        }
+    };
 
   const handleGameCreated = (newGameId, initialGameData) => {
     setGameId(newGameId);
@@ -268,9 +240,9 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         The person's icebreaker is: "${playerToAsk.icebreaker}".
         Output only the question.`;
 
-    let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
-    const payload = { contents: chatHistory };
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+        let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+        const payload = { contents: chatHistory };
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
 
     try {
       const response = await fetch(apiUrl, {
