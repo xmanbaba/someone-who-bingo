@@ -1,12 +1,19 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { initializeApp } from 'firebase/app';
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useContext, // ✅ Fixed: added this import
+} from "react";
+import { initializeApp } from "firebase/app";
 import {
   getAuth,
   onAuthStateChanged,
-  signInWithCustomToken,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
+  GoogleAuthProvider,
+  signInWithPopup,
 } from "firebase/auth";
 import {
   getFirestore,
@@ -21,52 +28,35 @@ import {
   getDocs,
   getDoc,
   documentId,
-} from "firebase/firestore"; 
+} from "firebase/firestore";
 
-// ====================================================================================================
-// IMPORTANT: FOR LOCAL DEVELOPMENT (e.g., in VS Code)
-// You MUST replace the placeholder values below with YOUR ACTUAL Firebase project configuration.
-// Get these details from your Firebase project settings -> Project settings -> General -> Your apps.
-// This is necessary for the app to connect to your Firebase project.
-// ====================================================================================================
 const firebaseConfig = {
-    apiKey: "AIzaSyBNkwfo1M0YKkOLoguixQhn42qwyCxFX4c", // <--- REPLACE THIS
-    authDomain: "find-someone-who-bingo.firebaseapp.com", // <--- REPLACE THIS (e.g., your-project-id.firebaseapp.com)
-    projectId: "find-someone-who-bingo", // <--- REPLACE THIS
-    storageBucket: "find-someone-who-bingo.firebasestorage.app", // <--- REPLACE THIS (e.g., your-project-id.appspot.com)
-    messagingSenderId: "136531916308", // <--- REPLACE THIS
-    appId: "1:136531916308:web:497b7e7d4b234113629901" // <--- REPLACE THIS
+  apiKey: "AIzaSyBNkwfo1M0YKkOLoguixQhn42qwyCxFX4c",
+  authDomain: "find-someone-who-bingo.firebaseapp.com",
+  projectId: "find-someone-who-bingo",
+  storageBucket: "find-someone-who-bingo.firebasestorage.app",
+  messagingSenderId: "136531916308",
+  appId: "1:136531916308:web:497b7e7d4b234113629901",
 };
 
-// ====================================================================================================
-// IMPORTANT: REPLACE THIS WITH YOUR ACTUAL GEMINI API KEY
-// This key is used for AI functionalities within the application (e.g., question generation).
-// ====================================================================================================
-const geminiApiKey = "AIzaSyANMkgevmn9i8mdRu_Pa0W-M4AI16rnOzI"; // <--- REPLACE THIS with your actual Gemini API Key
+const geminiApiKey = "AIzaSyANMkgevmn9i8mdRu_Pa0W-M4AI16rnOzI";
 
-
-// Initialize Firebase App globally for this component
 const AuthAndGameHandler = ({ children, showMessageModal }) => {
   const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
-  // isAdmin state is now managed by App.jsx based on role selection, not here
   const [gameId, setGameId] = useState(null);
   const [gameData, setGameData] = useState(null);
   const [playerData, setPlayerData] = useState(null);
-  const [gamePlayers, setGamePlayers] = useState([]); // Initialized as array
+  const [gamePlayers, setGamePlayers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isGeneratingAskMore, setIsGeneratingAskMore] = useState(false);
 
-  // Ref to keep track of the Firestore game listener's unsubscribe function
   const gameUnsubscribeRef = useRef(null);
-  // Ref to keep track of the Firestore players listener's unsubscribe function
   const playersUnsubscribeRef = useRef(null);
 
-  // Get the app ID from the environment (for Canvas) or use a default for local dev
   const appId = typeof __app_id !== "undefined" ? __app_id : "default-app-id";
 
-  // Effect for Firebase initialization and authentication state changes
   useEffect(() => {
     const initializeFirebase = async () => {
       try {
@@ -76,18 +66,13 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         setDb(firestoreDb);
         setAuth(firebaseAuth);
 
-        // Listen for auth state changes
         const unsubscribeAuth = onAuthStateChanged(firebaseAuth, (user) => {
-          if (user) {
-            setCurrentUserId(user.uid);
-          } else {
-            setCurrentUserId(null); // Clear user ID if logged out
-          }
-          setLoading(false); // Authentication state is ready
+          setCurrentUserId(user ? user.uid : null);
+          setLoading(false);
         });
 
         return () => {
-          unsubscribeAuth(); // Clean up auth listener
+          unsubscribeAuth();
           if (gameUnsubscribeRef.current) gameUnsubscribeRef.current();
           if (playersUnsubscribeRef.current) playersUnsubscribeRef.current();
         };
@@ -104,7 +89,6 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     initializeFirebase();
   }, [showMessageModal]);
 
-  // Effect for real-time game data listener
   useEffect(() => {
     if (!db || !gameId || !currentUserId) return;
 
@@ -122,15 +106,12 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           setGameData({ id: docSnap.id, ...data });
-          if (data.status === "ended" || data.status === "scoring") {
-            // Logic to stop timer would be in PlayingGame, but ensure state reflects
-          }
         } else {
           console.log("No such game document!");
           setGameId(null);
           setGameData(null);
           setPlayerData(null);
-          setGamePlayers([]); // Reset players to empty array
+          setGamePlayers([]);
           showMessageModal(
             "The game you were in no longer exists or has ended.",
             "info"
@@ -170,7 +151,6 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     };
   }, [db, gameId, currentUserId, appId, showMessageModal]);
 
-  // handleAdminLogin is now a placeholder, actual admin role is selected in App.jsx
   const handleAdminLogin = () => {
     setGameId(null);
     setGameData(null);
@@ -178,7 +158,6 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     setGamePlayers([]);
   };
 
-  // Player joins game handler
   const handleJoinGame = async (roomCode, playerName, icebreaker) => {
     if (!db || !currentUserId) {
       showMessageModal(
@@ -189,7 +168,6 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     }
 
     try {
-      // Query for the game document using the roomCode (documentId is correctly imported)
       const gameQuery = query(
         collection(db, `artifacts/${appId}/public/data/bingoGames`),
         where(documentId(), "==", roomCode)
@@ -204,7 +182,7 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         return;
       }
 
-      const gameDoc = gameSnapshot.docs[0]; // Access the first document from the snapshot
+      const gameDoc = gameSnapshot.docs[0];
       const gameDataFound = { id: gameDoc.id, ...gameDoc.data() };
 
       if (
@@ -257,14 +235,12 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     }
   };
 
-  // Handler when admin successfully creates a game
   const handleGameCreated = (newGameId, initialGameData) => {
     setGameId(newGameId);
     setGameData(initialGameData);
     showMessageModal(`Game created with code: ${newGameId}`, "success");
   };
 
-  // Handler for when a game finishes (from PlayingGame)
   const handleFinishGame = useCallback(
     (isTimeUp) => {
       if (!db || !gameId || !gameData) return;
@@ -286,13 +262,11 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     [db, gameId, gameData, appId]
   );
 
-  // Handler for AI "Ask More" feature
   const handleAskMore = async (playerToAsk) => {
     setIsGeneratingAskMore(true);
     const prompt = `Generate a fun, open-ended follow-up question for a networking bingo icebreaker.
         The person's icebreaker is: "${playerToAsk.icebreaker}".
-        The question should encourage further conversation based on their icebreaker.
-        Output only the question, nothing else.`;
+        Output only the question.`;
 
     let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
     const payload = { contents: chatHistory };
@@ -304,25 +278,20 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`API call failed: ${response.status} - ${errorText}`);
       }
+
       const result = await response.json();
-      if (
-        result.candidates &&
-        result.candidates.length > 0 &&
-        result.candidates[0].content &&
-        result.candidates[0].content.parts &&
-        result.candidates[0].content.parts.length > 0
-      ) {
-        const question = result.candidates[0].content.parts[0].text;
+      const question =
+        result?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+
+      if (question) {
         showMessageModal(`Ask ${playerToAsk.name}: "${question}"`, "info");
       } else {
-        showMessageModal(
-          "Could not generate a follow-up question. Please try again.",
-          "error"
-        );
+        showMessageModal("No follow-up question generated.", "error");
       }
     } catch (error) {
       console.error("Error generating follow-up question:", error);
@@ -335,25 +304,18 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     }
   };
 
-  // Handler to go back to login/admin choice (e.g., from Waiting Room for admin)
   const handleBackToLogin = () => {
     setGameId(null);
     setGameData(null);
     setPlayerData(null);
     setGamePlayers([]);
     showMessageModal("You have exited the game.", "info");
-    // Unsubscribe from any active game/player listeners
     if (gameUnsubscribeRef.current) gameUnsubscribeRef.current();
     if (playersUnsubscribeRef.current) playersUnsubscribeRef.current();
   };
 
-  // Safety check: Ensure children is a function before attempting to call it
   if (typeof children !== "function") {
-    console.error(
-      "AuthAndGameHandler: Expected 'children' to be a function, but received:",
-      typeof children,
-      children
-    );
+    console.error("AuthAndGameHandler: Expected 'children' to be a function.");
     showMessageModal("Application error: Please refresh the page.", "error");
     return (
       <div className="flex items-center justify-center min-h-screen bg-red-100 text-red-800 font-bold text-xl p-4 text-center">
@@ -366,7 +328,6 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     <>
       {children({
         currentUserId,
-        // isAdmin is now managed by App.jsx
         gameId,
         gameData,
         playerData,
@@ -383,12 +344,27 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         handleAskMore,
         handleBackToLogin,
         auth,
-        // Pass Firebase Auth functions directly
         createUserWithEmailAndPassword: (email, password) =>
           createUserWithEmailAndPassword(auth, email, password),
         signInWithEmailAndPassword: (email, password) =>
           signInWithEmailAndPassword(auth, email, password),
-        signOut: () => signOut(auth), // Pass signOut function
+        signInWithGoogle: async () => {
+          const provider = new GoogleAuthProvider();
+          try {
+            await signInWithPopup(auth, provider);
+          } catch (error) {
+            if (error.code === "auth/popup-closed-by-user") {
+              showMessageModal("Google sign-in cancelled.", "info");
+            } else {
+              console.error("Google sign-in error:", error);
+              showMessageModal(
+                `Google sign-in failed: ${error.message}`,
+                "error"
+              );
+            }
+          }
+        },
+        signOut: () => signOut(auth),
       })}
     </>
   );

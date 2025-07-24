@@ -1,21 +1,37 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
-// AuthScreen Component: Handles user login and signup with email and password
-// It now receives createUserWithEmailAndPassword and signInWithEmailAndPassword as direct props.
+// AuthScreen Component: Handles user login and signup with email/password and Google
 const AuthScreen = ({
-  auth,
   showMessageModal,
   onAuthSuccess,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithGoogle, // New prop for Google Sign-in
 }) => {
   const [isLoginMode, setIsLoginMode] = useState(true); // true for login, false for signup
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // No need to destructure from 'auth' anymore as they are direct props.
-  // The 'auth' prop itself is still passed for completeness, though not directly used here.
+  // Debug logs to inspect props - Keep these for now if still debugging auth issues
+  useEffect(() => {
+    console.log(
+      "AuthScreen (Props): createUserWithEmailAndPassword prop type:",
+      typeof createUserWithEmailAndPassword
+    );
+    console.log(
+      "AuthScreen (Props): signInWithEmailAndPassword prop type:",
+      typeof signInWithEmailAndPassword
+    );
+    console.log(
+      "AuthScreen (Props): signInWithGoogle prop type:",
+      typeof signInWithGoogle
+    );
+  }, [
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signInWithGoogle,
+  ]);
 
   const handleSubmit = async (e) => {
     e.preventDefault(); // Prevent default form submission
@@ -23,21 +39,28 @@ const AuthScreen = ({
 
     try {
       if (isLoginMode) {
-        // Login existing user using the directly passed function
+        if (typeof signInWithEmailAndPassword !== "function") {
+          throw new Error(
+            "signInWithEmailAndPassword is not a function. Check AuthAndGameHandler prop passing."
+          );
+        }
         await signInWithEmailAndPassword(email, password);
         showMessageModal("Logged in successfully!", "success");
       } else {
-        // Create new user using the directly passed function
+        if (typeof createUserWithEmailAndPassword !== "function") {
+          throw new Error(
+            "createUserWithEmailAndPassword is not a function. Check AuthAndGameHandler prop passing."
+          );
+        }
         await createUserWithEmailAndPassword(email, password);
         showMessageModal(
           "Account created successfully! You are now logged in.",
           "success"
         );
       }
-      onAuthSuccess(); // Callback to App.jsx to indicate successful authentication
+      onAuthSuccess();
     } catch (error) {
       console.error("Authentication error:", error);
-      // Display a user-friendly error message
       let errorMessage = "An unexpected error occurred. Please try again.";
       if (error.code) {
         switch (error.code) {
@@ -65,8 +88,31 @@ const AuthScreen = ({
           default:
             errorMessage = `Authentication failed: ${error.message}`;
         }
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       showMessageModal(errorMessage, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      if (typeof signInWithGoogle !== "function") {
+        throw new Error(
+          "signInWithGoogle is not a function. Check AuthAndGameHandler prop passing."
+        );
+      }
+      await signInWithGoogle();
+      showMessageModal("Signed in with Google successfully!", "success");
+      onAuthSuccess();
+    } catch (error) {
+      console.error("Google sign-in error:", error);
+      // Specific error handling for user closing popup is in AuthAndGameHandler,
+      // so this catches other potential errors.
+      showMessageModal(`Google sign-in failed: ${error.message}`, "error");
     } finally {
       setLoading(false);
     }
@@ -192,6 +238,28 @@ const AuthScreen = ({
             {isLoginMode ? "Sign Up" : "Log In"}
           </button>
         </p>
+
+        <div className="relative flex py-5 items-center">
+          <div className="flex-grow border-t border-gray-300"></div>
+          <span className="flex-shrink mx-4 text-gray-500 text-sm font-bold font-inter-rounded">
+            OR
+          </span>
+          <div className="flex-grow border-t border-gray-300"></div>
+        </div>
+
+        {/* Google Sign-in Button */}
+        <button
+          onClick={handleGoogleSignIn}
+          disabled={loading}
+          className="w-full py-3 px-6 bg-white border border-gray-300 text-gray-700 font-semibold rounded-2xl shadow-md hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 flex items-center justify-center font-inter-rounded"
+        >
+          <img
+            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+            alt="Google logo"
+            className="w-6 h-6 mr-3"
+          />
+          {loading ? "Signing in..." : "Sign in with Google"}
+        </button>
       </div>
     </div>
   );
