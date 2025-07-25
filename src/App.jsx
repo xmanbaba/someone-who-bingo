@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import Homepage from "./components/HomePage"; // ← NEW
 import AuthAndGameHandler from "./components/AuthAndGameHandler";
 import AuthScreen from "./components/AuthScreen";
 import LandingPage from "./components/LandingPage";
@@ -6,61 +7,41 @@ import AdminSetup from "./components/AdminSetup";
 import LoginPage from "./components/LoginPage";
 import WaitingRoom from "./components/WaitingRoom";
 import PlayingGame from "./components/PlayingGame";
-import SquareDetailsModal from "./components/SquareDetailsModal";
 import Scoreboard from "./components/Scoreboard";
 
 const App = () => {
+  // NEW: track which screen to show
+  const [screen, setScreen] = useState("home"); // home | auth | game...
   const [selectedRole, setSelectedRole] = useState(null);
 
-  const handleSelectRole = (role) => {
-    setSelectedRole(role);
-  };
-
-  const handleBackToRoleSelection = () => {
-    setSelectedRole(null);
-  };
-
-  const handleAuthSuccess = (user) => {
-    console.log("Authenticated User:", user);
-  };
-
-  const handleSignOut = async (signOutFn) => {
-    try {
-      await signOutFn();
-      setSelectedRole(null);
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
-  };
-
   const LoadingScreen = () => (
-    <div className="flex items-center justify-center min-h-screen bg-blue-50 font-inter">
-      <div className="text-center text-gray-700 text-2xl font-semibold flex items-center font-inter-rounded">
-        <svg
-          className="animate-spin -ml-1 mr-3 h-8 w-8 text-indigo-500"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-          ></circle>
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          ></path>
-        </svg>
+    <div className="flex items-center justify-center min-h-screen bg-blue-50">
+      <svg
+        className="animate-spin h-8 w-8 text-indigo-500"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <circle
+          className="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          strokeWidth="4"
+        ></circle>
+        <path
+          className="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+        ></path>
+      </svg>
+      <span className="ml-3 text-gray-700 text-2xl font-semibold">
         Loading App...
-      </div>
+      </span>
     </div>
   );
 
+  // ---------- ROUTING LOGIC ----------
   return (
     <AuthAndGameHandler
       showMessageModal={(msg, type) => alert(`${type}: ${msg}`)}
@@ -90,23 +71,30 @@ const App = () => {
       }) => {
         if (loading) return <LoadingScreen />;
 
-        let currentView;
-
+        // NEW: Homepage → Auth → Role → Game
         if (!currentUserId) {
-          currentView = (
+          if (screen === "home") {
+            return <Homepage onNavigate={() => setScreen("auth")} />;
+          }
+          return (
             <AuthScreen
               auth={auth}
               showMessageModal={(msg, type) => alert(`${type}: ${msg}`)}
-              onAuthSuccess={handleAuthSuccess}
+              onAuthSuccess={() => setScreen("role")}
               createUserWithEmailAndPassword={createUserWithEmailAndPassword}
               signInWithEmailAndPassword={signInWithEmailAndPassword}
               signInWithGoogle={signInWithGoogle}
             />
           );
-        } else if (selectedRole === null) {
-          currentView = <LandingPage onSelectRole={handleSelectRole} />;
-        } else if (selectedRole === "admin" && !gameId) {
-          currentView = (
+        }
+
+        if (screen === "role" || selectedRole === null) {
+          return <LandingPage onSelectRole={(r) => setSelectedRole(r)} />;
+        }
+
+        // ... same role / game flow you already had ...
+        if (selectedRole === "admin" && !gameId) {
+          return (
             <AdminSetup
               onGameCreated={handleGameCreated}
               userId={currentUserId}
@@ -114,22 +102,26 @@ const App = () => {
               appId={appId}
               showError={(msg) => alert(`error: ${msg}`)}
               geminiApiKey={geminiApiKey}
-              onBackToRoleSelection={handleBackToRoleSelection}
-              onSignOut={() => handleSignOut(signOut)}
+              onBackToRoleSelection={() => setSelectedRole(null)}
+              onSignOut={() => signOut()}
             />
           );
-        } else if (selectedRole === "player" && !gameId) {
-          currentView = (
+        }
+
+        if (selectedRole === "player" && !gameId) {
+          return (
             <LoginPage
               onAdminLogin={handleAdminLogin}
               onJoinGame={handleJoinGame}
               showError={(msg) => alert(`error: ${msg}`)}
-              onBackToRoleSelection={handleBackToRoleSelection}
-              onSignOut={() => handleSignOut(signOut)}
+              onBackToRoleSelection={() => setSelectedRole(null)}
+              onSignOut={() => signOut()}
             />
           );
-        } else if (gameId && gameData?.status === "waiting") {
-          currentView = (
+        }
+
+        if (gameId && gameData?.status === "waiting") {
+          return (
             <WaitingRoom
               game={gameData}
               players={gamePlayers}
@@ -143,34 +135,37 @@ const App = () => {
               isGeneratingAskMore={isGeneratingAskMore}
               onBackToLogin={handleBackToLogin}
               showSuccess={(msg) => alert(`success: ${msg}`)}
-              onBackToRoleSelection={handleBackToRoleSelection}
-              onSignOut={() => handleSignOut(signOut)}
+              onBackToRoleSelection={() => setSelectedRole(null)}
+              onSignOut={() => signOut()}
             />
           );
-        } else if (gameId && gameData?.status === "playing" && playerData) {
-          currentView = (
+        }
+
+        if (gameId && gameData?.status === "playing" && playerData) {
+          return (
             <PlayingGame
               game={gameData}
               player={playerData}
-              onSquareClick={() => {}}
               gamePlayers={gamePlayers}
               onFinishGame={handleFinishGame}
               showError={(msg) => alert(`error: ${msg}`)}
+              showSuccess={(msg) => alert(`success: ${msg}`)}
               onAskMore={handleAskMore}
               isGeneratingAskMore={isGeneratingAskMore}
-              showSuccess={(msg) => alert(`success: ${msg}`)}
               currentUserId={currentUserId}
               db={db}
               appId={appId}
-              onBackToRoleSelection={handleBackToRoleSelection}
-              onSignOut={() => handleSignOut(signOut)}
+              onBackToRoleSelection={() => setSelectedRole(null)}
+              onSignOut={() => signOut()}
             />
           );
-        } else if (
+        }
+
+        if (
           gameId &&
           (gameData?.status === "scoring" || gameData?.status === "ended")
         ) {
-          currentView = (
+          return (
             <Scoreboard
               game={gameData}
               players={gamePlayers}
@@ -182,24 +177,13 @@ const App = () => {
               showError={(msg) => alert(`error: ${msg}`)}
               db={db}
               appId={appId}
-              onBackToRoleSelection={handleBackToRoleSelection}
-              onSignOut={() => handleSignOut(signOut)}
-            />
-          );
-        } else {
-          currentView = (
-            <AuthScreen
-              auth={auth}
-              showMessageModal={(msg, type) => alert(`${type}: ${msg}`)}
-              onAuthSuccess={handleAuthSuccess}
-              createUserWithEmailAndPassword={createUserWithEmailAndPassword}
-              signInWithEmailAndPassword={signInWithEmailAndPassword}
-              signInWithGoogle={signInWithGoogle}
+              onBackToRoleSelection={() => setSelectedRole(null)}
+              onSignOut={() => signOut()}
             />
           );
         }
 
-        return currentView;
+        return <LoadingScreen />;
       }}
     </AuthAndGameHandler>
   );

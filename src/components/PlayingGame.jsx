@@ -185,50 +185,26 @@ const PlayingGame = ({
       </h2>
 
       <div className="flex flex-col sm:flex-row justify-between items-center bg-blue-100 border border-blue-300 p-4 sm:p-5 rounded-xl">
-        <div className="text-lg sm:text-xl font-bold text-blue-700 flex items-center mb-3 sm:mb-0">
-          Time Left:{" "}
-          <span className="ml-2 text-2xl">{formatTime(timeRemaining)}</span>
-        </div>
-
-        {player?.id === game.createdBy && game.status === "playing" && (
-          <button
-            onClick={handleAdminEndGame}
-            className="bg-red-600 text-white px-4 py-2 rounded-lg shadow hover:bg-red-700"
-          >
-            🛑 End Game (Admin)
-          </button>
-        )}
-
-        {!player?.isSubmitted && game?.status === "playing" && (
-          <button
-            onClick={handleSubmitCard}
-            className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow hover:bg-purple-700"
-          >
-            📢 Submit Card
-          </button>
-        )}
-        {player?.isSubmitted && (
-          <span className="text-green-600 font-semibold">✅ Submitted</span>
-        )}
+        {/* Time and controls */}
       </div>
 
       <div
         className="grid gap-2"
-        style={{ gridTemplateColumns: `repeat(${game.gridSize}, 1fr)` }}
+        style={{
+          gridTemplateColumns: `repeat(${game.gridSize}, minmax(0, 1fr))`,
+        }}
       >
         {playerBoard.map((square) => (
           <button
             key={square.index}
             disabled={player.isSubmitted || game.status !== "playing"}
             onClick={() => openModal(square)}
-            className={`relative p-2 sm:p-3 text-xs sm:text-sm md:text-base break-words whitespace-normal rounded-md transition-all border
-              ${
-                square.isChecked
-                  ? "bg-green-300 border-green-500 text-white"
-                  : "bg-white text-gray-800 border-gray-300 hover:bg-blue-100"
-              }
-              ${player.isSubmitted ? "opacity-50 cursor-not-allowed" : ""}
-            `}
+            className={`relative p-2 sm:p-3 text-xsm sm:text-sm md:text-base break-words rounded-md transition-all border ${
+              square.isChecked
+                ? "bg-green-300 border-green-500 text-white"
+                : "bg-white text-gray-800 border-gray-300 hover:bg-blue-100"
+            }
+              ${player.isSubmitted ? "opacity-50 cursor-not-allowed" : ""}`}
           >
             {square.question}
             {square.isChecked && (
@@ -240,6 +216,7 @@ const PlayingGame = ({
         ))}
       </div>
 
+      {/* Other Players */}
       <div className="mt-6">
         <h3 className="text-xl font-bold mb-3">Other Players:</h3>
         <ul className="space-y-2">
@@ -254,7 +231,30 @@ const PlayingGame = ({
                   disabled={isGeneratingAskMore}
                   className="text-purple-600 hover:underline mt-1 text-sm"
                 >
-                  ✨ Ask More
+                  {isGeneratingAskMore ? (
+                    <svg
+                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-purple-700"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                  ) : (
+                    "✨ Ask More"
+                  )}
                 </button>
               </li>
             ))}
@@ -280,4 +280,3 @@ const PlayingGame = ({
 };
 
 export default PlayingGame;
- 

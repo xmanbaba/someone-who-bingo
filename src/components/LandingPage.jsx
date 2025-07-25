@@ -1,13 +1,14 @@
 import React from "react";
 
-// LandingPage Component: Allows user to select their role (Regular Player or Admin)
 const LandingPage = ({ onSelectRole }) => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 text-gray-900 font-inter">
-      <div className="bg-white p-6 sm:p-8 rounded-2xl md:rounded-3xl shadow-xl border border-gray-100 max-w-xs w-full sm:max-w-sm md:max-w-md animate-fade-in-up">
-        <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-center text-indigo-700 mb-6 drop-shadow-md font-inter-rounded flex items-center justify-center">
+      <div className="bg-white p-8 sm:p-10 rounded-3xl shadow-xl border border-gray-100 max-w-md w-full animate-fade-in-up transform scale-95 text-center">
+        <h2 className="text-4xl font-extrabold text-center text-indigo-700 mb-8 drop-shadow-md font-inter-rounded flex items-center justify-center">
           <svg
-            className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 mr-2"
+            className="w-12 h-12 mr-3"
+            width="48"
+            height="48"
             viewBox="0 0 24 24"
             xmlns="http://www.w3.org/2000/svg"
           >
@@ -37,21 +38,21 @@ const LandingPage = ({ onSelectRole }) => {
           Networking Bingo
         </h2>
 
-        <p className="text-base sm:text-lg text-gray-700 mb-6 font-semibold text-center font-inter-rounded">
-          Welcome! Choose your role to begin.
+        <p className="text-xl text-gray-700 mb-8 font-semibold font-inter-rounded">
+          Welcome! Please choose your role to begin.
         </p>
 
-        <div className="space-y-4 sm:space-y-5">
+        <div className="space-y-6">
           <button
             onClick={() => onSelectRole("player")}
-            className="w-full py-3 sm:py-4 px-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold rounded-xl md:rounded-2xl shadow-lg transition-all duration-300 transform hover:scale-105 text-lg sm:text-xl"
+            className="w-full py-4 px-6 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-extrabold rounded-2xl shadow-lg transition-all duration-300 transform hover:scale-105 text-xl font-inter-rounded"
           >
-            👤 I&rsquo;m a Regular Player
+            👤 I'm a Regular Player
           </button>
 
-          <div className="relative flex items-center">
+          <div className="relative flex py-5 items-center">
             <div className="flex-grow border-t border-gray-300"></div>
-            <span className="flex-shrink mx-3 sm:mx-4 text-gray-500 text-xs sm:text-sm font-bold">
+            <span className="flex-shrink mx-4 text-gray-500 text-sm font-bold font-inter-rounded">
               OR
             </span>
             <div className="flex-grow border-t border-gray-300"></div>
@@ -59,9 +60,9 @@ const LandingPage = ({ onSelectRole }) => {
 
           <button
             onClick={() => onSelectRole("admin")}
-            className="w-full py-3 sm:py-4 px-4 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-bold rounded-xl md:rounded-2xl shadow-lg transition-all duration-300 transform hover:scale-105 text-lg sm:text-xl"
+            className="w-full py-4 px-6 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-extrabold rounded-2xl shadow-lg transition-all duration-300 transform hover:scale-105 text-xl font-inter-rounded"
           >
-            👑 I&rsquo;m an Admin
+            👑 I'm an Admin
           </button>
         </div>
       </div>
