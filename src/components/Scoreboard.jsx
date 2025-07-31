@@ -1,22 +1,52 @@
 import React, { useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, updateDoc } from "firebase/firestore";
 
 /* ---------- Modal ---------- */
-const PlayerBoardModal = ({ show, onClose, player, game }) => {
+const PlayerBoardModal = ({
+  show,
+  onClose,
+  player,
+  game,
+  isAdmin,
+  db,
+  appId,
+  onToggleCorrect,
+}) => {
   if (!show || !player || !game) return null;
 
   const grid = [];
   const checkedMap = new Map(
-    (player.checkedSquares || []).map((s) => [s.index, s.names])
+    (player.checkedSquares || []).map((s) => [
+      s.index,
+      { names: s.names, correct: s.correct ?? null },
+    ])
   );
   for (let i = 0; i < game.gridSize * game.gridSize; i++) {
     grid.push({
       index: i,
       question: game.questions[i],
       isChecked: checkedMap.has(i),
-      names: checkedMap.get(i) || [],
+      names: checkedMap.get(i)?.names || [],
+      correct: checkedMap.get(i)?.correct ?? null,
     });
   }
+
+  const handleMark = async (idx, mark) => {
+    const updated = [...(player.checkedSquares || [])];
+    const entry = updated.find((s) => s.index === idx);
+    if (entry) {
+      entry.correct = mark;
+      await updateDoc(
+        doc(
+          db,
+          `artifacts/${appId}/public/data/bingoGames/${game.id}/players`,
+          player.id
+        ),
+        { checkedSquares: updated }
+      );
+      onToggleCorrect();
+    }
+  };
 
   return (
     <div
@@ -24,7 +54,7 @@ const PlayerBoardModal = ({ show, onClose, player, game }) => {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl p-4 max-w-xs w-full"
+        className="bg-white rounded-2xl p-4 max-w-sm w-full"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-lg font-bold mb-3 text-center">
@@ -39,15 +69,39 @@ const PlayerBoardModal = ({ show, onClose, player, game }) => {
           {grid.map((sq) => (
             <div
               key={sq.index}
-              className={`p-2 text-xs rounded-md border ${
-                sq.isChecked ? "bg-green-200" : "bg-gray-100"
+              className={`p-2 text-xs rounded-md border break-words text-center ${
+                sq.isChecked
+                  ? sq.correct === true
+                    ? "bg-green-200 border-green-500"
+                    : sq.correct === false
+                    ? "bg-red-200 border-red-500"
+                    : "bg-yellow-200"
+                  : "bg-gray-100"
               }`}
             >
               <div className="truncate">{sq.question}</div>
               {sq.isChecked && (
-                <div className="text-xs text-gray-600 mt-1 break-words">
-                  {sq.names.join(", ")}
-                </div>
+                <>
+                  <div className="text-xs text-gray-600 mt-1 break-words">
+                    {sq.names.join(", ")}
+                  </div>
+                  {isAdmin && (
+                    <div className="flex gap-1 mt-1">
+                      <button
+                        onClick={() => handleMark(sq.index, true)}
+                        className="px-1 py-0.5 bg-green-500 text-white rounded text-xs"
+                      >
+                        ✓
+                      </button>
+                      <button
+                        onClick={() => handleMark(sq.index, false)}
+                        className="px-1 py-0.5 bg-red-500 text-white rounded text-xs"
+                      >
+                        ✗
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           ))}
@@ -78,7 +132,40 @@ const Scoreboard = ({
 }) => {
   const [openBoard, setOpenBoard] = useState(null);
 
-  const calculateScore = (checkedSquares) => checkedSquares?.length || 0;
+  /* ---------- SCORE HELPERS ---------- */
+  const now = Date.now();
+  const maxTime = game.timerDuration * 60 * 1000;
+
+  const computeScores = (p) => {
+    const filled = p.checkedSquares?.length || 0;
+    const correct = (p.checkedSquares || []).filter(
+      (s) => s.correct === true
+    ).length;
+    const time = p.submissionTime || now;
+
+    const completionScore = (filled / (game.gridSize * game.gridSize)) * 40;
+    const accuracyScore = filled === 0 ? 0 : (correct / filled) * 60;
+    const timeScore = p.isSubmitted
+      ? Math.max(0, ((maxTime - (time - game.startTime)) / maxTime) * 10)
+      : 0;
+
+    return {
+      completionScore,
+      accuracyScore,
+      timeScore,
+      aggregate: completionScore + accuracyScore + timeScore,
+    };
+  };
+
+  /* ---------- SORT ---------- */
+  const sortedPlayers = [...players]
+    .map((p) => ({ ...p, ...computeScores(p) }))
+    .sort((a, b) => {
+      if (a.aggregate !== b.aggregate) return b.aggregate - a.aggregate;
+      if (a.isSubmitted && !b.isSubmitted) return -1;
+      if (!a.isSubmitted && b.isSubmitted) return 1;
+      return (a.submissionTime || 0) - (b.submissionTime || 0);
+    });
 
   return (
     <>
@@ -88,23 +175,21 @@ const Scoreboard = ({
         </h2>
 
         {/* Game Details */}
-        <div className="bg-purple-50 border border-purple-200 p-6 rounded-xl shadow-inner text-center space-y-4">
+        <div className="bg-purple-50 border border-purple-200 p-6 rounded-xl shadow-inner text-center">
           <p className="text-xl font-bold text-purple-700">
             Game Code:{" "}
-            <span className="text-purple-900 font-extrabold text-2xl">
-              {game?.id}
-            </span>
+            <span className="text-purple-900 font-extrabold">{game.id}</span>
           </p>
           <p className="text-lg text-gray-700">
-            Industry: <span className="font-semibold">{game?.industry}</span> |
+            Industry: <span className="font-semibold">{game.industry}</span> |
             Grid Size:{" "}
             <span className="font-semibold">
-              {game?.gridSize}x{game?.gridSize}
+              {game.gridSize}×{game.gridSize}
             </span>
           </p>
         </div>
 
-        {/* Player Ranks */}
+        {/* Player List */}
         <div className="bg-white p-6 rounded-2xl shadow-lg border-2 border-gray-100">
           <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
             <svg
@@ -112,67 +197,46 @@ const Scoreboard = ({
               fill="currentColor"
               viewBox="0 0 24 24"
             >
-              <path d="M20 6h-4V4c0-1.1.1.9-2 0-2-2H6c-1.1 0-2 .9-2 2v2H4v14h14V6zm-8 8h4v2H8V8zm-4 4h2v6h-2V8z" />
+              <path d="M20 6h-4V4c0-1.1.1.9-2 0-2-2H6c-1.1 0-2 .9-2 2v2H4v14h14V6z" />
             </svg>
             Player Ranks:
           </h3>
           <div className="bg-gray-50 rounded p-5 max-h-64 overflow-y-auto shadow-inner">
             <ul className="space-y-3">
-              {players
-                .sort((a, b) => {
-                  if (a.score !== b.score) return b.score - a.score;
-                  if (a.isSubmitted && b.isSubmitted)
-                    return a.submissionTime - b.submissionTime;
-                  return a.isSubmitted ? -1 : 1;
-                })
-                .map((player, index) => (
-                  <li
-                    key={player.id}
-                    className={`flex items-center justify-between p-4 rounded-lg shadow-md border-2 cursor-pointer ${
-                      index === 0 && player.isSubmitted
-                        ? "bg-yellow-100 border-yellow-400"
-                        : "bg-white border-gray-200"
-                    }`}
-                    onClick={() => setOpenBoard(player)}
-                  >
-                    <div className="flex flex-col">
-                      <span
-                        className={`font-extrabold text-2xl mr-3 ${
-                          index === 0 && player.isSubmitted
-                            ? "text-yellow-600"
-                            : "text-gray-600"
-                        }`}
-                      >
-                        {index + 1}.
-                      </span>
-                      <span
-                        className={`font-bold text-lg ${
-                          player.id === currentUserId
-                            ? "text-blue-800"
-                            : "text-gray-800"
-                        }`}
-                      >
-                        {player.name} {player.id === currentUserId && "(You)"}
-                      </span>
-                      <span className="text-sm text-gray-500 italic mt-1">
-                        {player.isSubmitted
-                          ? `Submitted at: ${new Date(
-                              player.submissionTime
-                            ).toLocaleTimeString()}`
-                          : "Not Submitted"}
-                      </span>
-                    </div>
+              {sortedPlayers.map((player, idx) => (
+                <li
+                  key={player.id}
+                  className={`flex flex-col sm:flex-row justify-between items-center p-4 rounded-lg shadow-md border-2 cursor-pointer ${
+                    idx === 0
+                      ? "bg-yellow-100 border-yellow-400"
+                      : "bg-white border-gray-200"
+                  }`}
+                  onClick={() => setOpenBoard(player)}
+                >
+                  <div className="flex items-center mb-2 sm:mb-0">
+                    <span className="font-extrabold text-xl mr-3">
+                      {idx + 1}.
+                    </span>
                     <span
-                      className={`font-extrabold text-2xl ${
-                        index === 0 && player.isSubmitted
-                          ? "text-yellow-700"
-                          : "text-purple-700"
+                      className={`font-bold text-lg ${
+                        player.id === currentUserId
+                          ? "text-blue-800"
+                          : "text-gray-800"
                       }`}
                     >
-                      Score: {calculateScore(player.checkedSquares)}
+                      {player.name} {player.id === currentUserId && "(You)"}
                     </span>
-                  </li>
-                ))}
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold text-purple-700">
+                      {player.aggregate.toFixed(1)} pts
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {player.isSubmitted ? "Submitted" : "Not Submitted"}
+                    </div>
+                  </div>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
@@ -204,6 +268,10 @@ const Scoreboard = ({
         onClose={() => setOpenBoard(null)}
         player={openBoard}
         game={game}
+        isAdmin={isAdmin}
+        db={db}
+        appId={appId}
+        onToggleCorrect={() => setOpenBoard(null)}
       />
     </>
   );
