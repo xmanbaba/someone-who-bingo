@@ -1,3 +1,4 @@
+// Scoreboard.tsx
 import React, { useState } from "react";
 import { doc, updateDoc } from "firebase/firestore";
 
@@ -21,6 +22,7 @@ const PlayerBoardModal = ({
       { names: s.names, correct: s.correct ?? null },
     ])
   );
+
   for (let i = 0; i < game.gridSize * game.gridSize; i++) {
     grid.push({
       index: i,
@@ -54,11 +56,11 @@ const PlayerBoardModal = ({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl p-4 max-w-sm w-full"
+        className="bg-white rounded-2xl p-4 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-bold mb-3 text-center">
-          {player.name}'s Card
+        <h3 className="text-xl font-bold mb-4 text-center">
+          {player.name}'s Grid
         </h3>
         <div
           className="grid gap-2"
@@ -69,7 +71,7 @@ const PlayerBoardModal = ({
           {grid.map((sq) => (
             <div
               key={sq.index}
-              className={`p-2 text-xs rounded-md border break-words text-center ${
+              className={`p-2 text-xs rounded-md border text-center overflow-hidden ${
                 sq.isChecked
                   ? sq.correct === true
                     ? "bg-green-200 border-green-500"
@@ -79,23 +81,25 @@ const PlayerBoardModal = ({
                   : "bg-gray-100"
               }`}
             >
-              <div className="truncate">{sq.question}</div>
+              <div className="font-medium text-gray-800 text-xs mb-1 max-h-16 overflow-y-auto break-words">
+                {sq.question}
+              </div>
               {sq.isChecked && (
                 <>
-                  <div className="text-xs text-gray-600 mt-1 break-words">
+                  <div className="text-gray-700 text-[10px] max-h-12 overflow-y-auto break-words">
                     {sq.names.join(", ")}
                   </div>
                   {isAdmin && (
-                    <div className="flex gap-1 mt-1">
+                    <div className="flex justify-center gap-1 mt-1">
                       <button
                         onClick={() => handleMark(sq.index, true)}
-                        className="px-1 py-0.5 bg-green-500 text-white rounded text-xs"
+                        className="px-2 py-0.5 bg-green-600 text-white rounded text-xs"
                       >
                         ✓
                       </button>
                       <button
                         onClick={() => handleMark(sq.index, false)}
-                        className="px-1 py-0.5 bg-red-500 text-white rounded text-xs"
+                        className="px-2 py-0.5 bg-red-600 text-white rounded text-xs"
                       >
                         ✗
                       </button>
@@ -108,7 +112,7 @@ const PlayerBoardModal = ({
         </div>
         <button
           onClick={onClose}
-          className="mt-4 w-full py-2 bg-blue-500 text-white rounded"
+          className="mt-4 w-full py-2 bg-blue-600 text-white rounded"
         >
           Close
         </button>
@@ -125,14 +129,10 @@ const Scoreboard = ({
   onBackToLogin,
   onPlayAgain,
   currentUserId,
-  showSuccess,
-  showError,
   db,
   appId,
 }) => {
   const [openBoard, setOpenBoard] = useState(null);
-
-  /* ---------- SCORE HELPERS ---------- */
   const now = Date.now();
   const maxTime = game.timerDuration * 60 * 1000;
 
@@ -141,128 +141,103 @@ const Scoreboard = ({
     const correct = (p.checkedSquares || []).filter(
       (s) => s.correct === true
     ).length;
-    const time = p.submissionTime || now;
 
     const completionScore = (filled / (game.gridSize * game.gridSize)) * 40;
     const accuracyScore = filled === 0 ? 0 : (correct / filled) * 60;
-    const timeScore = p.isSubmitted
-      ? Math.max(0, ((maxTime - (time - game.startTime)) / maxTime) * 10)
-      : 0;
 
     return {
       completionScore,
       accuracyScore,
-      timeScore,
-      aggregate: completionScore + accuracyScore + timeScore,
+      aggregate: completionScore + accuracyScore,
     };
   };
 
-  /* ---------- SORT ---------- */
   const sortedPlayers = [...players]
     .map((p) => ({ ...p, ...computeScores(p) }))
-    .sort((a, b) => {
-      if (a.aggregate !== b.aggregate) return b.aggregate - a.aggregate;
-      if (a.isSubmitted && !b.isSubmitted) return -1;
-      if (!a.isSubmitted && b.isSubmitted) return 1;
-      return (a.submissionTime || 0) - (b.submissionTime || 0);
-    });
+    .sort((a, b) => b.aggregate - a.aggregate);
 
   return (
     <>
-      <div className="space-y-8 p-6 bg-white rounded-3xl shadow-2xl max-w-3xl mx-auto border-4 border-purple-300">
-        <h2 className="text-4xl font-extrabold text-center text-purple-800 mb-6">
-          🏆 Game Over! Scoreboard
+      <div className="space-y-6 p-4 sm:p-6 md:p-8 bg-white rounded-3xl shadow-xl max-w-5xl mx-auto border-2 border-purple-300">
+        <h2 className="text-3xl md:text-4xl font-bold text-center text-purple-800">
+          🏁 Final Scoreboard
         </h2>
 
-        {/* Game Details */}
-        <div className="bg-purple-50 border border-purple-200 p-6 rounded-xl shadow-inner text-center">
-          <p className="text-xl font-bold text-purple-700">
-            Game Code:{" "}
-            <span className="text-purple-900 font-extrabold">{game.id}</span>
-          </p>
-          <p className="text-lg text-gray-700">
-            Industry: <span className="font-semibold">{game.industry}</span> |
-            Grid Size:{" "}
-            <span className="font-semibold">
+        {/* Game Info */}
+        <div className="bg-purple-50 p-4 rounded-xl text-center text-sm sm:text-base">
+          <p>
+            Game Code: <strong>{game.id}</strong> | Industry:{" "}
+            <strong>{game.industry}</strong> | Grid:{" "}
+            <strong>
               {game.gridSize}×{game.gridSize}
-            </span>
+            </strong>
           </p>
         </div>
 
-        {/* Player List */}
-        <div className="bg-white p-6 rounded-2xl shadow-lg border-2 border-gray-100">
-          <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
-            <svg
-              className="w-6 h-6 mr-2 text-yellow-500"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path d="M20 6h-4V4c0-1.1.1.9-2 0-2-2H6c-1.1 0-2 .9-2 2v2H4v14h14V6z" />
-            </svg>
-            Player Ranks:
-          </h3>
-          <div className="bg-gray-50 rounded p-5 max-h-64 overflow-y-auto shadow-inner">
-            <ul className="space-y-3">
-              {sortedPlayers.map((player, idx) => (
-                <li
-                  key={player.id}
-                  className={`flex flex-col sm:flex-row justify-between items-center p-4 rounded-lg shadow-md border-2 cursor-pointer ${
-                    idx === 0
-                      ? "bg-yellow-100 border-yellow-400"
-                      : "bg-white border-gray-200"
+        {/* Player Table */}
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm border border-gray-300 rounded-xl overflow-hidden">
+            <thead className="bg-gray-100 text-gray-700 font-semibold">
+              <tr>
+                <th className="px-3 py-2 text-left">#</th>
+                <th className="px-3 py-2 text-left">Player</th>
+                <th className="px-3 py-2 text-right">Time</th>
+                <th className="px-3 py-2 text-right">Completion</th>
+                <th className="px-3 py-2 text-right">Accuracy</th>
+                <th className="px-3 py-2 text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedPlayers.map((p, i) => (
+                <tr
+                  key={p.id}
+                  className={`border-t hover:bg-gray-50 cursor-pointer ${
+                    p.id === currentUserId ? "bg-blue-50" : ""
                   }`}
-                  onClick={() => setOpenBoard(player)}
+                  onClick={() => setOpenBoard(p)}
                 >
-                  <div className="flex items-center mb-2 sm:mb-0">
-                    <span className="font-extrabold text-xl mr-3">
-                      {idx + 1}.
-                    </span>
-                    <span
-                      className={`font-bold text-lg ${
-                        player.id === currentUserId
-                          ? "text-blue-800"
-                          : "text-gray-800"
-                      }`}
-                    >
-                      {player.name} {player.id === currentUserId && "(You)"}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-purple-700">
-                      {player.aggregate.toFixed(1)} pts
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {player.isSubmitted ? "Submitted" : "Not Submitted"}
-                    </div>
-                  </div>
-                </li>
+                  <td className="px-3 py-2">{i + 1}</td>
+                  <td className="px-3 py-2">
+                    {p.name} {p.id === currentUserId && "(You)"}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    {p.timeScore.toFixed(1)}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    {p.completionScore.toFixed(1)}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    {p.accuracyScore.toFixed(1)}
+                  </td>
+                  <td className="px-3 py-2 text-right font-bold text-purple-700">
+                    {p.aggregate.toFixed(1)}
+                  </td>
+                </tr>
               ))}
-            </ul>
-          </div>
+            </tbody>
+          </table>
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-5 mt-10">
+        {/* Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 mt-6">
           {isAdmin && (
             <button
               onClick={onPlayAgain}
-              className="flex-1 font-extrabold py-5 px-6 rounded-2xl text-2xl bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 transition-transform transform hover:scale-105"
+              className="flex-1 py-3 rounded-xl text-white text-lg bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
             >
-              🔄 Play Again (Admin Only)
+              🔄 Play Again
             </button>
           )}
           <button
             onClick={onBackToLogin}
-            className={`flex-1 font-extrabold py-5 px-6 rounded-2xl text-2xl bg-gradient-to-r from-gray-500 to-gray-700 text-white hover:from-gray-600 hover:to-gray-800 transition-transform transform hover:scale-105 ${
-              isAdmin ? "" : "w-full"
-            }`}
+            className="flex-1 py-3 rounded-xl text-white text-lg bg-gray-600 hover:bg-gray-700"
           >
-            🚪 Exit Game
+            🚪 Exit
           </button>
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Player Modal */}
       <PlayerBoardModal
         show={openBoard}
         onClose={() => setOpenBoard(null)}
@@ -271,7 +246,7 @@ const Scoreboard = ({
         isAdmin={isAdmin}
         db={db}
         appId={appId}
-        onToggleCorrect={() => setOpenBoard(null)}
+        onToggleCorrect={() => {}}
       />
     </>
   );
