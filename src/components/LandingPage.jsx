@@ -1,6 +1,8 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
-const LandingPage = ({ onSelectRole }) => {
+const LandingPage = () => {
+   const navigate = useNavigate();
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 text-gray-900 font-inter">
       <div className="bg-white p-8 sm:p-10 rounded-3xl shadow-xl border border-gray-100 max-w-md w-full animate-fade-in-up transform scale-95 text-center">
@@ -44,7 +46,7 @@ const LandingPage = ({ onSelectRole }) => {
 
         <div className="space-y-6">
           <button
-            onClick={() => onSelectRole("player")}
+            onClick={() => navigate("/player/join")}
             className="w-full py-4 px-6 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-extrabold rounded-2xl shadow-lg transition-all duration-300 transform hover:scale-105 text-xl font-inter-rounded"
           >
             👤 I'm a Regular Player
@@ -59,7 +61,7 @@ const LandingPage = ({ onSelectRole }) => {
           </div>
 
           <button
-            onClick={() => onSelectRole("admin")}
+            onClick={() => navigate("/admin/setup")}
             className="w-full py-4 px-6 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-extrabold rounded-2xl shadow-lg transition-all duration-300 transform hover:scale-105 text-xl font-inter-rounded"
           >
             👑 I'm an Admin

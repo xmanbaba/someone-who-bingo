@@ -29,6 +29,7 @@ import {
   getDoc,
   documentId,
 } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBNkwfo1M0YKkOLoguixQhn42qwyCxFX4c",
@@ -337,6 +338,7 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
           }
         },
         signOut: () => signOut(auth),
+        navigate: useNavigate(),
       })}
     </>
   );

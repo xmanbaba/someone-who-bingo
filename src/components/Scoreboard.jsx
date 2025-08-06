@@ -1,6 +1,7 @@
 // Scoreboard.tsx
 import React, { useState } from "react";
 import { doc, updateDoc } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 
 /* ---------- Modal ---------- */
 const PlayerBoardModal = ({
@@ -126,31 +127,31 @@ const Scoreboard = ({
   game,
   players,
   isAdmin,
-  onBackToLogin,
   onPlayAgain,
   currentUserId,
   db,
   appId,
 }) => {
+  const navigate = useNavigate();
   const [openBoard, setOpenBoard] = useState(null);
   const now = Date.now();
   const maxTime = game.timerDuration * 60 * 1000;
 
-  const computeScores = (p) => {
-    const filled = p.checkedSquares?.length || 0;
-    const correct = (p.checkedSquares || []).filter(
-      (s) => s.correct === true
-    ).length;
+ const computeScores = (p) => {
+   const filled = p?.checkedSquares?.length || 0;
+   const correct = (p?.checkedSquares || []).filter(
+     (s) => s.correct === true
+   ).length;
 
-    const completionScore = (filled / (game.gridSize * game.gridSize)) * 40;
-    const accuracyScore = filled === 0 ? 0 : (correct / filled) * 60;
+   const completionScore = (filled / (game.gridSize * game.gridSize)) * 40;
+   const accuracyScore = filled === 0 ? 0 : (correct / filled) * 60;
 
-    return {
-      completionScore,
-      accuracyScore,
-      aggregate: completionScore + accuracyScore,
-    };
-  };
+   return {
+     completionScore,
+     accuracyScore,
+     aggregate: completionScore + accuracyScore,
+   };
+ };
 
   const sortedPlayers = [...players]
     .map((p) => ({ ...p, ...computeScores(p) }))
@@ -229,7 +230,7 @@ const Scoreboard = ({
             </button>
           )}
           <button
-            onClick={onBackToLogin}
+            onClick={() => navigate("/role")}
             className="flex-1 py-3 rounded-xl text-white text-lg bg-gray-600 hover:bg-gray-700"
           >
             🚪 Exit

@@ -1,5 +1,6 @@
 import React from "react";
 import { doc, updateDoc } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 
 const WaitingRoom = ({
   game,
@@ -12,9 +13,10 @@ const WaitingRoom = ({
   onAskMore,
   currentUserId,
   isGeneratingAskMore,
-  onBackToLogin,
   showSuccess,
 }) => {
+  const navigate = useNavigate();
+
   const handleStartGame = async () => {
     if (!db || !game || !roomCode) return showError("Game data not available.");
     try {
@@ -50,16 +52,16 @@ const WaitingRoom = ({
         <div className="flex items-center justify-center space-x-2">
           <span
             className="
-    inline-block
-    text-[clamp(1.2rem,4vw,2.5rem)]
-    font-extrabold
-    text-blue-900
-    tracking-tighter
-    bg-blue-200
-    px-2
-    rounded
-    whitespace-nowrap
-  "
+              inline-block
+              text-[clamp(1.2rem,4vw,2.5rem)]
+              font-extrabold
+              text-blue-900
+              tracking-tighter
+              bg-blue-200
+              px-2
+              rounded
+              whitespace-nowrap
+            "
           >
             {roomCode}
           </span>
@@ -169,16 +171,24 @@ const WaitingRoom = ({
             🏁 Start
           </button>
           <button
-            onClick={onBackToLogin}
+            onClick={() => navigate("/role")}
             className="flex-1 font-bold py-2.5 rounded-lg bg-gray-500 text-white hover:bg-gray-600 hover:scale-105 text-sm"
           >
             🚪 Exit
           </button>
         </div>
       ) : (
-        <p className="text-center text-gray-600 italic text-xs animate-bounce-slow">
-          Waiting for admin…
-        </p>
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-center text-gray-600 italic text-xs animate-bounce-slow">
+            Waiting for admin…
+          </p>
+          <button
+            onClick={() => navigate("/role")}
+            className="w-full font-bold py-2.5 rounded-lg bg-gray-500 text-white hover:bg-gray-600 hover:scale-105 text-sm"
+          >
+            🚪 Exit
+          </button>
+        </div>
       )}
     </div>
   );

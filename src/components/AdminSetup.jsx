@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { collection, addDoc, doc, setDoc } from "firebase/firestore";
 
 const AdminSetup = ({
@@ -8,8 +9,8 @@ const AdminSetup = ({
   appId,
   showError,
   geminiApiKey,
-  onBackToRoleSelection,
 }) => {
+ const navigate = useNavigate(); 
   const [industry, setIndustry] = useState("Human Resources");
   const [gridSize, setGridSize] = useState(5);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
@@ -330,7 +331,7 @@ const AdminSetup = ({
 
       {/* Back button */}
       <button
-        onClick={onBackToRoleSelection}
+        onClick={() => navigate("/role")}
         className="w-full font-bold py-3 mt-6 bg-gray-500 text-white rounded-xl shadow-md hover:bg-gray-600 transition-transform transform hover:scale-105"
       >
         ⬅️ Back to Role Selection

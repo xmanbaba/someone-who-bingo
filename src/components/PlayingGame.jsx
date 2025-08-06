@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { doc, updateDoc } from "firebase/firestore";
 import SquareDetailsModal from "./SquareDetailsModal";
+import { useNavigate } from "react-router-dom";
 
 const PlayingGame = ({
   game,
@@ -14,9 +15,9 @@ const PlayingGame = ({
   currentUserId,
   db,
   appId,
-  onBackToRoleSelection,
   onSignOut,
 }) => {
+  const navigate = useNavigate();
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [selectedSquare, setSelectedSquare] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);

@@ -1,13 +1,14 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 // LoginPage Component: Handles an authenticated player joining a game
 const LoginPage = ({
   onJoinGame,
   showError,
-  onBackToRoleSelection,
   onSignOut,
 }) => {
   // State variables for room code, player name, and icebreaker
+  const navigate = useNavigate();
   const [roomCode, setRoomCode] = useState("");
   const [playerName, setPlayerName] = useState("");
   const [icebreaker, setIcebreaker] = useState("");
@@ -140,7 +141,7 @@ const LoginPage = ({
         {/* Navigation Buttons for Player */}
         <div className="flex flex-col space-y-4 mt-8">
           <button
-            onClick={onBackToRoleSelection}
+            onClick={() => navigate("/role")}
             className="w-full py-3 px-6 bg-gray-200 text-gray-800 font-bold rounded-2xl hover:bg-gray-300 transition-all duration-300 shadow-md transform hover:scale-105 text-lg font-inter-rounded"
           >
             ⬅️ Back to Role Selection

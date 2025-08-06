@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-
+import { useNavigate } from "react-router-dom";
 // AuthScreen Component
 const AuthScreen = ({
   showMessageModal,
@@ -8,6 +8,7 @@ const AuthScreen = ({
   signInWithEmailAndPassword,
   signInWithGoogle,
 }) => {
+  const navigate = useNavigate();
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,7 +25,7 @@ const AuthScreen = ({
         await createUserWithEmailAndPassword(email, password);
         showMessageModal("Account created!", "success");
       }
-      onAuthSuccess();
+      navigate("/role")
     } catch (error) {
       let msg = "Authentication failed.";
       switch (error.code) {
@@ -55,7 +56,7 @@ const AuthScreen = ({
     try {
       await signInWithGoogle();
       showMessageModal("Signed in with Google!", "success");
-      onAuthSuccess();
+      navigate("/role");  
     } catch (error) {
       showMessageModal(`Google sign-in failed: ${error.message}`, "error");
     } finally {
