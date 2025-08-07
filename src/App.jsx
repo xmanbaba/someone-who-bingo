@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import AuthAndGameHandler from "./components/AuthAndGameHandler";
 
 /* Screens */
-import Homepage from "./components/Homepage";
+import Homepage from "./components/HomePage";
 import AuthScreen from "./components/AuthScreen";
 import LandingPage from "./components/LandingPage";
 import AdminSetup from "./components/AdminSetup";
