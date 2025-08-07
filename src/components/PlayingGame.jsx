@@ -30,6 +30,13 @@ const PlayingGame = ({
   const timerRef = useRef(null);
   const timerStartedRef = useRef(false);
 
+  useEffect(() => {
+    if (game?.status === "scoring" || game?.status === "ended") {
+      console.log("Game ended, redirecting to scoreboard");
+      navigate(`/score/${game.id}`, { replace: true });
+    }
+  }, [game?.status, game?.id, navigate]);
+
   // Handle case where game or player data might be temporarily null during connection issues
   const getPlayerBoard = (questions, gridSize, checkedSquares) => {
     if (!questions || !gridSize) return [];
