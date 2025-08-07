@@ -120,6 +120,8 @@ const AdminSetup = ({
       return showError(`Need ${gridSize * gridSize} questions`);
     if (customTimerDuration <= 0) return showError("Timer must be > 0");
 
+    let newGameId; // Declare the variable outside the try block
+
     try {
       const gamesCollectionRef = collection(
         db,
@@ -136,10 +138,12 @@ const AdminSetup = ({
         scoringEndTime: null,
       });
 
+      newGameId = newGame.id; // Assign the value inside try block
+
       await setDoc(
         doc(
           db,
-          `artifacts/${appId}/public/data/bingoGames/${newGame.id}/players`,
+          `artifacts/${appId}/public/data/bingoGames/${newGameId}/players`,
           userId
         ),
         {
@@ -151,11 +155,9 @@ const AdminSetup = ({
           icebreaker: "The game master who sets the stage for fun! ✨",
         }
       );
-
-      const newGameId = newGame.id;
       
-      onGameCreated(newGame.id, {
-        id: newGame.id,
+      onGameCreated(newGameId, {
+        id: newGameId,
         adminId: userId,
         industry,
         gridSize,
@@ -163,10 +165,14 @@ const AdminSetup = ({
         status: "waiting",
         questions: currentQuestions,
       });
+
+      // Navigate after successful creation
+      navigate(`/waiting/${newGameId}`);
+      
     } catch (e) {
       showError(`Create failed: ${e.message}`);
+      return; // Exit early on error, don't navigate
     }
-    navigate(`/waiting/${newGameId}`);
   };
 
   return (
