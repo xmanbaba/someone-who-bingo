@@ -30,12 +30,6 @@ const PlayingGame = ({
   const timerRef = useRef(null);
   const timerStartedRef = useRef(false);
 
-  useEffect(() => {
-    if (game?.status === "scoring" || game?.status === "ended") {
-      console.log("Game ended, redirecting to scoreboard");
-      navigate(`/score/${game.id}`, { replace: true });
-    }
-  }, [game?.status, game?.id, navigate]);
 
   // Handle case where game or player data might be temporarily null during connection issues
   const getPlayerBoard = (questions, gridSize, checkedSquares) => {
@@ -161,8 +155,8 @@ const PlayingGame = ({
         ),
         { checkedSquares: updated }
       );
-      showSuccess("Square updated!");
-      closeModal();
+  //     showSuccess("Square updated!");
+     closeModal();
     } catch (e) {
       console.error("Error updating square:", e);
       showError("Failed to update square.");

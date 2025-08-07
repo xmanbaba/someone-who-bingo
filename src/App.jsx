@@ -1,7 +1,7 @@
 import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate,  } from "react-router-dom";
 import AuthAndGameHandler from "./components/AuthAndGameHandler";
-
+import { useEffect } from "react";
 /* Screens */
 import Homepage from "./components/HomePage";
 import AuthScreen from "./components/AuthScreen";
@@ -98,6 +98,18 @@ export default function App() {
             signInWithGoogle,
             signOut,
           } = props;
+          
+          const navigate = useNavigate();
+
+          useEffect(() => {
+            if (
+              gameData?.status === "scoring" ||
+              gameData?.status === "ended"
+            ) {
+              console.log("✅ Game finished. Navigating to scoreboard...");
+              navigate(`/score/${gameId}`, { replace: true });
+            }
+          }, [gameData?.status, gameId, navigate]);
 
           if (loading) return <LoadingScreen />;
 
