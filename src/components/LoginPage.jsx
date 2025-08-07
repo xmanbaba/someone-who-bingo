@@ -2,12 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 // LoginPage Component: Handles an authenticated player joining a game
-const LoginPage = ({
-  onJoinGame,
-  showError,
-  onSignOut,
-}) => {
-  // State variables for room code, player name, and icebreaker
+const LoginPage = ({ onJoinGame, showError, onSignOut }) => {
   const navigate = useNavigate();
   const [roomCode, setRoomCode] = useState("");
   const [playerName, setPlayerName] = useState("");
@@ -22,6 +17,7 @@ const LoginPage = ({
     }
     // Call the parent component's onJoinGame function with trimmed values
     onJoinGame(roomCode.trim(), playerName.trim(), icebreaker.trim());
+    // Navigate to waiting room after successful join
     navigate(`/waiting/${roomCode.trim()}`);
   };
 
@@ -93,7 +89,7 @@ const LoginPage = ({
               className="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300 transition duration-300 ease-in-out bg-white placeholder-gray-400 font-inter-rounded"
               placeholder="e.g., ABCDE"
               value={roomCode}
-              onChange={(e) => setRoomCode(e.target.value)} // Ensure uppercase for room code
+              onChange={(e) => setRoomCode(e.target.value)}
               required
             />
           </div>

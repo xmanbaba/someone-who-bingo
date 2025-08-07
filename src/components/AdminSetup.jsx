@@ -152,6 +152,8 @@ const AdminSetup = ({
         }
       );
 
+      const newGameId = newGame.id;
+      
       onGameCreated(newGame.id, {
         id: newGame.id,
         adminId: userId,
