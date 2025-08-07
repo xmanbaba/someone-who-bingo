@@ -22,6 +22,7 @@ const LoginPage = ({
     }
     // Call the parent component's onJoinGame function with trimmed values
     onJoinGame(roomCode.trim(), playerName.trim(), icebreaker.trim());
+    navigate(`/waiting/${roomCode.trim()}`);
   };
 
   return (

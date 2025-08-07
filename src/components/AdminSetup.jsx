@@ -164,6 +164,7 @@ const AdminSetup = ({
     } catch (e) {
       showError(`Create failed: ${e.message}`);
     }
+    navigate(`/waiting/${newGameId}`);
   };
 
   return (
