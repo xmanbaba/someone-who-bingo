@@ -30,7 +30,7 @@ import {
   documentId,
   connectFirestoreEmulator,
 } from "firebase/firestore";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate} from "react-router-dom";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBNkwfo1M0YKkOLoguixQhn42qwyCxFX4c",
@@ -44,6 +44,7 @@ const firebaseConfig = {
 const geminiApiKey = "AIzaSyANMkgevmn9i8mdRu_Pa0W-M4AI16rnOzI";
 
 const AuthAndGameHandler = ({ children, showMessageModal }) => {
+  const navigate = useNavigate();
   const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -75,22 +76,36 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
   }, []);
 
   useEffect(() => {
+  if (
+    gameId &&
+    (gameData?.status === "scoring" || gameData?.status === "ended")
+  ) {
+    console.log("✅ Game finished. Navigating to scoreboard...");
+    navigate(`/score/${gameId}`, { replace: true });
+  }
+}, [gameData?.status, gameId, navigate]);
+
+
+  useEffect(() => {
     const initializeFirebase = async () => {
       try {
         const app = initializeApp(firebaseConfig);
         const firestoreDb = getFirestore(app);
         const firebaseAuth = getAuth(app);
-        
+
         // Configure Firestore settings for better connection handling
-        if (typeof window !== 'undefined') {
+        if (typeof window !== "undefined") {
           // Enable offline persistence
           try {
             // Note: enableNetwork and other settings might need to be adjusted based on your needs
           } catch (persistenceError) {
-            console.warn("Could not enable offline persistence:", persistenceError);
+            console.warn(
+              "Could not enable offline persistence:",
+              persistenceError
+            );
           }
         }
-        
+
         setDb(firestoreDb);
         setAuth(firebaseAuth);
 
@@ -117,131 +132,152 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     initializeFirebase();
   }, [showMessageModal]);
 
-  const setupGameListeners = useCallback((gameIdToWatch) => {
-    if (!db || !gameIdToWatch || !currentUserId) return;
+  const setupGameListeners = useCallback(
+    (gameIdToWatch) => {
+      if (!db || !gameIdToWatch || !currentUserId) return;
 
-    // Prevent multiple reconnection attempts
-    if (isReconnectingRef.current) {
-      console.log("Already reconnecting, skipping new listener setup");
-      return;
-    }
-
-    // Clear existing listeners
-    if (gameUnsubscribeRef.current) {
-      gameUnsubscribeRef.current();
-      gameUnsubscribeRef.current = null;
-    }
-    if (playersUnsubscribeRef.current) {
-      playersUnsubscribeRef.current();
-      playersUnsubscribeRef.current = null;
-    }
-
-    const gameDocRef = doc(
-      db,
-      `artifacts/${appId}/public/data/bingoGames`,
-      gameIdToWatch
-    );
-
-    // Game document listener with improved error handling
-    gameUnsubscribeRef.current = onSnapshot(
-      gameDocRef,
-      (docSnap) => {
-        setConnectionError(false);
-        setRetryCount(0);
-        isReconnectingRef.current = false;
-        
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          const newGameData = { id: docSnap.id, ...data };
-          setGameData(newGameData);
-          
-          // Check if current user is admin
-          setIsAdmin(newGameData.createdBy === currentUserId);
-        } else {
-          console.log("Game document no longer exists");
-          setGameData(prevData => prevData ? { ...prevData, status: 'not_found' } : null);
-        }
-      },
-      (error) => {
-        console.error("Error listening to game document:", error);
-        
-        // Only handle specific connection errors, not all errors
-        if (error.code === 'unavailable' || error.code === 'permission-denied') {
-          setConnectionError(true);
-          handleConnectionError(gameIdToWatch);
-        } else {
-          // For other errors, show message but don't auto-retry
-          showMessageModal(`Error loading game: ${error.message}`, "error");
-        }
+      // Prevent multiple reconnection attempts
+      if (isReconnectingRef.current) {
+        console.log("Already reconnecting, skipping new listener setup");
+        return;
       }
-    );
 
-    // Players collection listener with improved error handling
-    const playersCollectionRef = collection(
-      db,
-      `artifacts/${appId}/public/data/bingoGames/${gameIdToWatch}/players`
-    );
-    
-    playersUnsubscribeRef.current = onSnapshot(
-      playersCollectionRef,
-      (snapshot) => {
-        setConnectionError(false);
-        setRetryCount(0);
-        isReconnectingRef.current = false;
-        
-        const playersList = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setGamePlayers(playersList);
-        
-        const currentPlayer = playersList.find((p) => p.id === currentUserId);
-        setPlayerData(currentPlayer);
-      },
-      (error) => {
-        console.error("Error listening to players collection:", error);
-        
-        // Only handle specific connection errors
-        if (error.code === 'unavailable' || error.code === 'permission-denied') {
-          setConnectionError(true);
-          handleConnectionError(gameIdToWatch);
-        } else {
-          showMessageModal(`Error loading players: ${error.message}`, "error");
-        }
+      // Clear existing listeners
+      if (gameUnsubscribeRef.current) {
+        gameUnsubscribeRef.current();
+        gameUnsubscribeRef.current = null;
       }
-    );
-  }, [db, currentUserId, appId, showMessageModal]);
+      if (playersUnsubscribeRef.current) {
+        playersUnsubscribeRef.current();
+        playersUnsubscribeRef.current = null;
+      }
 
-  const handleConnectionError = useCallback((gameIdToReconnect) => {
-    // Prevent multiple simultaneous reconnection attempts
-    if (isReconnectingRef.current) {
-      console.log("Already attempting to reconnect, skipping");
-      return;
-    }
-
-    if (retryCount >= maxRetries) {
-      console.log("Max retries reached, stopping reconnection attempts");
-      showMessageModal(
-        "Connection lost. Please refresh the page to reconnect.",
-        "error"
+      const gameDocRef = doc(
+        db,
+        `artifacts/${appId}/public/data/bingoGames`,
+        gameIdToWatch
       );
-      return;
-    }
 
-    isReconnectingRef.current = true;
-    const retryDelay = Math.min(2000 * Math.pow(2, retryCount), 10000); // Exponential backoff, max 10 seconds
-    console.log(`Attempting to reconnect in ${retryDelay}ms (attempt ${retryCount + 1}/${maxRetries})`);
-    
-    if (retryTimeoutRef.current) {
-      clearTimeout(retryTimeoutRef.current);
-    }
-    
-    retryTimeoutRef.current = setTimeout(() => {
-      setRetryCount(prev => prev + 1);
-      console.log("Reconnecting listeners...");
-      setupGameListeners(gameIdToReconnect);
-    }, retryDelay);
-  }, [retryCount, maxRetries, setupGameListeners, showMessageModal]);
+      // Game document listener with improved error handling
+      gameUnsubscribeRef.current = onSnapshot(
+        gameDocRef,
+        (docSnap) => {
+          setConnectionError(false);
+          setRetryCount(0);
+          isReconnectingRef.current = false;
+
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            const newGameData = { id: docSnap.id, ...data };
+            setGameData(newGameData);
+
+            // Check if current user is admin
+            setIsAdmin(newGameData.createdBy === currentUserId);
+          } else {
+            console.log("Game document no longer exists");
+            setGameData((prevData) =>
+              prevData ? { ...prevData, status: "not_found" } : null
+            );
+          }
+        },
+        (error) => {
+          console.error("Error listening to game document:", error);
+
+          // Only handle specific connection errors, not all errors
+          if (
+            error.code === "unavailable" ||
+            error.code === "permission-denied"
+          ) {
+            setConnectionError(true);
+            handleConnectionError(gameIdToWatch);
+          } else {
+            // For other errors, show message but don't auto-retry
+            showMessageModal(`Error loading game: ${error.message}`, "error");
+          }
+        }
+      );
+
+      // Players collection listener with improved error handling
+      const playersCollectionRef = collection(
+        db,
+        `artifacts/${appId}/public/data/bingoGames/${gameIdToWatch}/players`
+      );
+
+      playersUnsubscribeRef.current = onSnapshot(
+        playersCollectionRef,
+        (snapshot) => {
+          setConnectionError(false);
+          setRetryCount(0);
+          isReconnectingRef.current = false;
+
+          const playersList = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          setGamePlayers(playersList);
+
+          const currentPlayer = playersList.find((p) => p.id === currentUserId);
+          setPlayerData(currentPlayer);
+        },
+        (error) => {
+          console.error("Error listening to players collection:", error);
+
+          // Only handle specific connection errors
+          if (
+            error.code === "unavailable" ||
+            error.code === "permission-denied"
+          ) {
+            setConnectionError(true);
+            handleConnectionError(gameIdToWatch);
+          } else {
+            showMessageModal(
+              `Error loading players: ${error.message}`,
+              "error"
+            );
+          }
+        }
+      );
+    },
+    [db, currentUserId, appId, showMessageModal]
+  );
+
+  const handleConnectionError = useCallback(
+    (gameIdToReconnect) => {
+      // Prevent multiple simultaneous reconnection attempts
+      if (isReconnectingRef.current) {
+        console.log("Already attempting to reconnect, skipping");
+        return;
+      }
+
+      if (retryCount >= maxRetries) {
+        console.log("Max retries reached, stopping reconnection attempts");
+        showMessageModal(
+          "Connection lost. Please refresh the page to reconnect.",
+          "error"
+        );
+        return;
+      }
+
+      isReconnectingRef.current = true;
+      const retryDelay = Math.min(2000 * Math.pow(2, retryCount), 10000); // Exponential backoff, max 10 seconds
+      console.log(
+        `Attempting to reconnect in ${retryDelay}ms (attempt ${
+          retryCount + 1
+        }/${maxRetries})`
+      );
+
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+
+      retryTimeoutRef.current = setTimeout(() => {
+        setRetryCount((prev) => prev + 1);
+        console.log("Reconnecting listeners...");
+        setupGameListeners(gameIdToReconnect);
+      }, retryDelay);
+    },
+    [retryCount, maxRetries, setupGameListeners, showMessageModal]
+  );
 
   useEffect(() => {
     if (gameId) {
@@ -284,16 +320,13 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
           `artifacts/${appId}/public/data/bingoGames/${roomCode}/players`,
           currentUserId
         );
-        
+
         await updateDoc(playerDocRef, {
           name: playerName,
           icebreaker: icebreaker,
         });
-        
-        showMessageModal(
-          `Updated your info in game ${roomCode}!`,
-          "success"
-        );
+
+        showMessageModal(`Updated your info in game ${roomCode}!`, "success");
         return roomCode;
       }
 
@@ -360,7 +393,7 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
           "success"
         );
       }
-      
+
       return gameDataFound.id;
     } catch (error) {
       console.error("Error joining game:", error);
@@ -379,26 +412,33 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
   };
 
   const handleFinishGame = useCallback(
-    (isTimeUp) => {
-      if (!db || !gameId || !gameData) return;
+  (isTimeUp) => {
+    if (!db || !gameId || !gameData) return;
 
-      // Only handle time up scenario for game ending
-      if (isTimeUp && gameData.status === "playing") {
-        const gameRef = doc(
-          db,
-          `artifacts/${appId}/public/data/bingoGames`,
-          gameId
-        );
-        updateDoc(gameRef, {
-          status: "scoring",
-          scoringEndTime: Date.now() + 5 * 60 * 1000,
-        }).catch((error) =>
-          console.error("Error setting scoring status:", error)
-        );
-      }
-    },
-    [db, gameId, gameData, appId]
-  );
+    if (gameData.status !== "playing") {
+      console.log("Game is not in a playable state, skipping finish");
+      return;
+    }
+
+    const gameRef = doc(
+      db,
+      `artifacts/${appId}/public/data/bingoGames`,
+      gameId
+    );
+
+    const scoringEndTime = Date.now() + 5 * 60 * 1000;
+
+    updateDoc(gameRef, {
+      status: "scoring",
+      scoringEndTime,
+      endedBy: isTimeUp ? "timer" : currentUserId,
+    }).catch((error) =>
+      console.error("Error setting scoring status:", error)
+    );
+  },
+  [db, gameId, gameData, appId, currentUserId, isAdmin]
+);
+
 
   const handleAskMore = async (playerToAsk) => {
     setIsGeneratingAskMore(true);
@@ -452,11 +492,11 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     setRetryCount(0);
     setIsAdmin(false);
     isReconnectingRef.current = false;
-    
+
     if (retryTimeoutRef.current) {
       clearTimeout(retryTimeoutRef.current);
     }
-    
+
     // Clean up listeners
     if (gameUnsubscribeRef.current) {
       gameUnsubscribeRef.current();
@@ -466,7 +506,7 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
       playersUnsubscribeRef.current();
       playersUnsubscribeRef.current = null;
     }
-    
+
     showMessageModal("You have exited the game.", "info");
   };
 
@@ -524,7 +564,6 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
           }
         },
         signOut: () => signOut(auth),
-        navigate: useNavigate(),
       })}
     </>
   );

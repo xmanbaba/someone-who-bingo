@@ -138,20 +138,28 @@ const Scoreboard = ({
   const maxTime = game.timerDuration * 60 * 1000;
 
  const computeScores = (p) => {
-   const filled = p?.checkedSquares?.length || 0;
-   const correct = (p?.checkedSquares || []).filter(
-     (s) => s.correct === true
-   ).length;
+  const filled = p?.checkedSquares?.length || 0;
+  const correct = (p?.checkedSquares || []).filter(
+    (s) => s.correct === true
+  ).length;
 
-   const completionScore = (filled / (game.gridSize * game.gridSize)) * 40;
-   const accuracyScore = filled === 0 ? 0 : (correct / filled) * 60;
+  const completionScore = (filled / (game.gridSize * game.gridSize)) * 40;
+  const accuracyScore = filled === 0 ? 0 : (correct / filled) * 60;
 
-   return {
-     completionScore,
-     accuracyScore,
-     aggregate: completionScore + accuracyScore,
-   };
- };
+  // Time score: lower is better (in seconds)
+  const timeScore =
+    p?.endTime && p?.startTime
+      ? (p.endTime - p.startTime) / 1000
+      : Infinity; // fallback for missing data
+
+  return {
+    completionScore,
+    accuracyScore,
+    aggregate: completionScore + accuracyScore,
+    timeScore,
+  };
+};
+
 
   const sortedPlayers = [...players]
     .map((p) => ({ ...p, ...computeScores(p) }))
@@ -230,7 +238,9 @@ const Scoreboard = ({
             </button>
           )}
           <button
-            onClick={() => navigate("/role")}
+            onClick={() => {
+              handleBackToLogin();
+              navigate("/role")}}
             className="flex-1 py-3 rounded-xl text-white text-lg bg-gray-600 hover:bg-gray-700"
           >
             🚪 Exit

@@ -101,15 +101,15 @@ export default function App() {
           
           const navigate = useNavigate();
 
-          useEffect(() => {
-            if (
-              gameData?.status === "scoring" ||
-              gameData?.status === "ended"
-            ) {
-              console.log("✅ Game finished. Navigating to scoreboard...");
-              navigate(`/score/${gameId}`, { replace: true });
-            }
-          }, [gameData?.status, gameId, navigate]);
+          // useEffect(() => {
+          //   if (
+          //     gameData?.status === "scoring" ||
+          //     gameData?.status === "ended"
+          //   ) {
+          //     console.log("✅ Game finished. Navigating to scoreboard...");
+          //     navigate(`/score/${gameId}`, { replace: true });
+          //   }
+          // }, [gameData?.status, gameId, navigate]);
 
           if (loading) return <LoadingScreen />;
 
