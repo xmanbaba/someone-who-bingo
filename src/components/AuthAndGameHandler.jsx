@@ -3,7 +3,7 @@ import React, {
   useEffect,
   useRef,
   useCallback,
-  useContext, // ✅ Fixed: added this import
+  useContext,
 } from "react";
 import { initializeApp } from "firebase/app";
 import {
@@ -28,6 +28,7 @@ import {
   getDocs,
   getDoc,
   documentId,
+  connectFirestoreEmulator,
 } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 
@@ -52,11 +53,24 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
   const [gamePlayers, setGamePlayers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isGeneratingAskMore, setIsGeneratingAskMore] = useState(false);
+  const [connectionError, setConnectionError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   const gameUnsubscribeRef = useRef(null);
   const playersUnsubscribeRef = useRef(null);
+  const retryTimeoutRef = useRef(null);
+  const maxRetries = 3;
 
   const appId = typeof __app_id !== "undefined" ? __app_id : "default-app-id";
+
+  // Clear retry timeout on cleanup
+  useEffect(() => {
+    return () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const initializeFirebase = async () => {
@@ -64,6 +78,17 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         const app = initializeApp(firebaseConfig);
         const firestoreDb = getFirestore(app);
         const firebaseAuth = getAuth(app);
+        
+        // Configure Firestore settings for better connection handling
+        if (typeof window !== 'undefined') {
+          // Enable offline persistence
+          try {
+            // Note: enableNetwork and other settings might need to be adjusted based on your needs
+          } catch (persistenceError) {
+            console.warn("Could not enable offline persistence:", persistenceError);
+          }
+        }
+        
         setDb(firestoreDb);
         setAuth(firebaseAuth);
 
@@ -87,66 +112,135 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
       }
     };
 
-        initializeFirebase();
-    }, [showMessageModal]); 
+    initializeFirebase();
+  }, [showMessageModal]);
 
-  useEffect(() => {
-    if (!db || !gameId || !currentUserId) return;
+  const setupGameListeners = useCallback((gameIdToWatch) => {
+    if (!db || !gameIdToWatch || !currentUserId) return;
 
-        if (gameUnsubscribeRef.current) gameUnsubscribeRef.current();
-        if (playersUnsubscribeRef.current) playersUnsubscribeRef.current();
+    // Clear existing listeners
+    if (gameUnsubscribeRef.current) {
+      gameUnsubscribeRef.current();
+      gameUnsubscribeRef.current = null;
+    }
+    if (playersUnsubscribeRef.current) {
+      playersUnsubscribeRef.current();
+      playersUnsubscribeRef.current = null;
+    }
 
     const gameDocRef = doc(
       db,
       `artifacts/${appId}/public/data/bingoGames`,
-      gameId
+      gameIdToWatch
     );
+
+    // Game document listener with improved error handling
     gameUnsubscribeRef.current = onSnapshot(
       gameDocRef,
       (docSnap) => {
+        setConnectionError(false);
+        setRetryCount(0);
+        
         if (docSnap.exists()) {
           const data = docSnap.data();
           setGameData({ id: docSnap.id, ...data });
         } else {
-          console.log("No such game document!");
-          setGameId(null);
-          setGameData(null);
-          setPlayerData(null);
-          setGamePlayers([]);
-          showMessageModal(
-            "The game you were in no longer exists or has ended.",
-            "info"
-          );
+          console.log("Game document no longer exists");
+          // Don't immediately clear game state - the game might be temporarily unavailable
+          // Only clear if we get consistent "not exists" responses
+          setGameData(prevData => prevData ? { ...prevData, status: 'not_found' } : null);
         }
       },
       (error) => {
         console.error("Error listening to game document:", error);
-        showMessageModal(`Error loading game: ${error.message}`, "error");
+        setConnectionError(true);
+        
+        // Handle different types of errors
+        if (error.code === 'unavailable' || error.message.includes('QUIC_PROTOCOL_ERROR')) {
+          console.log("Connection issue detected, attempting to reconnect...");
+          handleConnectionError(gameIdToWatch);
+        } else {
+          showMessageModal(`Error loading game: ${error.message}`, "error");
+        }
       }
     );
 
-        const playersCollectionRef = collection(db, `artifacts/${appId}/public/data/bingoGames/${gameId}/players`);
-        playersUnsubscribeRef.current = onSnapshot(playersCollectionRef, (snapshot) => {
-            const playersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setGamePlayers(playersList);
-            const currentPlayer = playersList.find(p => p.id === currentUserId);
-            setPlayerData(currentPlayer);
-        }, (error) => {
-            console.error("Error listening to players collection:", error);
-            showMessageModal(`Error loading players: ${error.message}`, 'error');
-        });
+    // Players collection listener with improved error handling
+    const playersCollectionRef = collection(
+      db,
+      `artifacts/${appId}/public/data/bingoGames/${gameIdToWatch}/players`
+    );
+    
+    playersUnsubscribeRef.current = onSnapshot(
+      playersCollectionRef,
+      (snapshot) => {
+        setConnectionError(false);
+        setRetryCount(0);
+        
+        const playersList = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setGamePlayers(playersList);
+        const currentPlayer = playersList.find((p) => p.id === currentUserId);
+        setPlayerData(currentPlayer);
+      },
+      (error) => {
+        console.error("Error listening to players collection:", error);
+        setConnectionError(true);
+        
+        if (error.code === 'unavailable' || error.message.includes('QUIC_PROTOCOL_ERROR')) {
+          console.log("Players connection issue detected, attempting to reconnect...");
+          handleConnectionError(gameIdToWatch);
+        } else {
+          showMessageModal(`Error loading players: ${error.message}`, "error");
+        }
+      }
+    );
+  }, [db, currentUserId, appId, showMessageModal]);
 
-        return () => {
-            if (gameUnsubscribeRef.current) gameUnsubscribeRef.current();
-            if (playersUnsubscribeRef.current) playersUnsubscribeRef.current();
-        };
-    }, [db, gameId, currentUserId, appId, showMessageModal]);
+  const handleConnectionError = useCallback((gameIdToReconnect) => {
+    if (retryCount >= maxRetries) {
+      console.log("Max retries reached, stopping reconnection attempts");
+      showMessageModal(
+        "Connection lost. Please refresh the page to reconnect.",
+        "error"
+      );
+      return;
+    }
+
+    const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff, max 10 seconds
+    console.log(`Attempting to reconnect in ${retryDelay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+    
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+    }
+    
+    retryTimeoutRef.current = setTimeout(() => {
+      setRetryCount(prev => prev + 1);
+      console.log("Reconnecting listeners...");
+      setupGameListeners(gameIdToReconnect);
+    }, retryDelay);
+  }, [retryCount, maxRetries, setupGameListeners, showMessageModal]);
+
+  useEffect(() => {
+    if (gameId) {
+      setupGameListeners(gameId);
+    }
+
+    return () => {
+      if (gameUnsubscribeRef.current) gameUnsubscribeRef.current();
+      if (playersUnsubscribeRef.current) playersUnsubscribeRef.current();
+    };
+  }, [gameId, setupGameListeners]);
 
   const handleAdminLogin = () => {
     setGameId(null);
     setGameData(null);
     setPlayerData(null);
     setGamePlayers([]);
+    setConnectionError(false);
+    setRetryCount(0);
   };
 
   const handleJoinGame = async (roomCode, playerName, icebreaker) => {
@@ -165,53 +259,74 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
       );
       const gameSnapshot = await getDocs(gameQuery);
 
-            if (gameSnapshot.empty) {
-                showMessageModal("Game not found with this code. Please check the code or try again.", 'error');
-                return;
-            }
+      if (gameSnapshot.empty) {
+        showMessageModal(
+          "Game not found with this code. Please check the code or try again.",
+          "error"
+        );
+        return;
+      }
 
       const gameDoc = gameSnapshot.docs[0];
       const gameDataFound = { id: gameDoc.id, ...gameDoc.data() };
 
-            if (gameDataFound.status !== 'waiting' && gameDataFound.status !== 'playing') {
-                showMessageModal("This game is not in a joinable state (e.g., it might be over).", 'error');
-                return;
-            }
+      if (
+        gameDataFound.status !== "waiting" &&
+        gameDataFound.status !== "playing"
+      ) {
+        showMessageModal(
+          "This game is not in a joinable state (e.g., it might be over).",
+          "error"
+        );
+        return;
+      }
 
-            setGameId(gameDataFound.id);
-            setGameData(gameDataFound);
+      setGameId(gameDataFound.id);
+      setGameData(gameDataFound);
 
-            const playerDocRef = doc(db, `artifacts/${appId}/public/data/bingoGames/${gameDataFound.id}/players`, currentUserId);
-            const playerDocSnap = await getDoc(playerDocRef);
+      const playerDocRef = doc(
+        db,
+        `artifacts/${appId}/public/data/bingoGames/${gameDataFound.id}/players`,
+        currentUserId
+      );
+      const playerDocSnap = await getDoc(playerDocRef);
 
-            if (!playerDocSnap.exists()) {
-                await setDoc(playerDocRef, {
-                    name: playerName,
-                    checkedSquares: [], 
-                    submissionTime: null,
-                    isSubmitted: false,
-                    score: 0,
-                    icebreaker: icebreaker,
-                });
-                showMessageModal(`Joined game ${gameDataFound.id} as ${playerName}!`, 'success');
-            } else {
-                await updateDoc(playerDocRef, {
-                    name: playerName,
-                    icebreaker: icebreaker,
-                });
-                showMessageModal(`Rejoined game ${gameDataFound.id} as ${playerName}!`, 'success');
-                return gameDataFound.id;
-            }
-
-        } catch (error) {
-            console.error("Error joining game:", error);
-            showMessageModal(`Failed to join game: ${error.message}`, 'error');
-        }
-    };
+      if (!playerDocSnap.exists()) {
+        await setDoc(playerDocRef, {
+          name: playerName,
+          checkedSquares: [],
+          submissionTime: null,
+          isSubmitted: false,
+          score: 0,
+          icebreaker: icebreaker,
+        });
+        showMessageModal(
+          `Joined game ${gameDataFound.id} as ${playerName}!`,
+          "success"
+        );
+      } else {
+        await updateDoc(playerDocRef, {
+          name: playerName,
+          icebreaker: icebreaker,
+        });
+        showMessageModal(
+          `Rejoined game ${gameDataFound.id} as ${playerName}!`,
+          "success"
+        );
+      }
+      
+      return gameDataFound.id;
+    } catch (error) {
+      console.error("Error joining game:", error);
+      showMessageModal(`Failed to join game: ${error.message}`, "error");
+    }
+  };
 
   const handleGameCreated = (newGameId, initialGameData) => {
     setGameId(newGameId);
     setGameData(initialGameData);
+    setConnectionError(false);
+    setRetryCount(0);
     showMessageModal(`Game created with code: ${newGameId}`, "success");
   };
 
@@ -242,9 +357,9 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         The person's icebreaker is: "${playerToAsk.icebreaker}".
         Output only the question.`;
 
-        let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
-        const payload = { contents: chatHistory };
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+    let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+    const payload = { contents: chatHistory };
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
 
     try {
       const response = await fetch(apiUrl, {
@@ -283,6 +398,13 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     setGameData(null);
     setPlayerData(null);
     setGamePlayers([]);
+    setConnectionError(false);
+    setRetryCount(0);
+    
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+    }
+    
     showMessageModal("You have exited the game.", "info");
     if (gameUnsubscribeRef.current) gameUnsubscribeRef.current();
     if (playersUnsubscribeRef.current) playersUnsubscribeRef.current();
@@ -308,6 +430,8 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         gamePlayers,
         loading,
         isGeneratingAskMore,
+        connectionError,
+        retryCount,
         db,
         appId,
         geminiApiKey,

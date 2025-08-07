@@ -39,6 +39,32 @@ const LoadingScreen = () => (
   </div>
 );
 
+// Helper function to determine if we should show a game route or redirect
+const shouldShowGameRoute = (gameId, gameData, connectionError, expectedStatus = null) => {
+  // If there's a connection error, allow the route to show (don't redirect)
+  if (connectionError && gameId) {
+    return true;
+  }
+  
+  // If no gameId at all, redirect
+  if (!gameId) {
+    return false;
+  }
+  
+  // If we have gameId but no gameData yet, allow it (might be loading)
+  if (!gameData) {
+    return true;
+  }
+  
+  // If we expect a specific status, check it
+  if (expectedStatus) {
+    return gameData.status === expectedStatus;
+  }
+  
+  // Default to allowing the route
+  return true;
+};
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -54,6 +80,8 @@ export default function App() {
             gamePlayers,
             loading,
             isGeneratingAskMore,
+            connectionError, // This comes from the updated AuthAndGameHandler
+            retryCount,      // This too
             db,
             appId,
             geminiApiKey,
@@ -146,15 +174,15 @@ export default function App() {
                 }
               />
 
-              {/* Waiting room */}
+              {/* Waiting room - FIXED: More tolerant of connection issues */}
               <Route
                 path="/waiting/:gameId"
                 element={
-                  gameId && gameData?.status === "waiting" ? (
+                  shouldShowGameRoute(gameId, gameData, connectionError, "waiting") ? (
                     <WaitingRoom
                       game={gameData}
                       players={gamePlayers}
-                      isAdmin={gameData.adminId === currentUserId}
+                      isAdmin={gameData?.adminId === currentUserId}
                       roomCode={gameId}
                       db={db}
                       appId={appId}
@@ -164,6 +192,8 @@ export default function App() {
                       isGeneratingAskMore={isGeneratingAskMore}
                       onBackToLogin={handleBackToLogin}
                       showSuccess={(msg) => alert(`success: ${msg}`)}
+                      connectionError={connectionError}
+                      retryCount={retryCount}
                     />
                   ) : (
                     <Navigate to="/role" replace />
@@ -171,11 +201,11 @@ export default function App() {
                 }
               />
 
-              {/* Playing */}
+              {/* Playing - FIXED: More tolerant of connection issues */}
               <Route
                 path="/play/:gameId"
                 element={
-                  gameId && gameData?.status === "playing" && playerData ? (
+                  shouldShowGameRoute(gameId, gameData, connectionError, "playing") ? (
                     <PlayingGame
                       game={gameData}
                       player={playerData}
@@ -190,6 +220,8 @@ export default function App() {
                       appId={appId}
                       onBackToRoleSelection={() => window.history.back()}
                       onSignOut={() => signOut()}
+                      connectionError={connectionError}
+                      retryCount={retryCount}
                     />
                   ) : (
                     <Navigate to="/role" replace />
@@ -197,17 +229,16 @@ export default function App() {
                 }
               />
 
-              {/* Scoreboard */}
+              {/* Scoreboard - FIXED: More tolerant of connection issues */}
               <Route
                 path="/score/:gameId"
                 element={
-                  gameId &&
-                  (gameData?.status === "scoring" ||
-                    gameData?.status === "ended") ? (
+                  shouldShowGameRoute(gameId, gameData, connectionError) &&
+                  (gameData?.status === "scoring" || gameData?.status === "ended" || connectionError) ? (
                     <Scoreboard
                       game={gameData}
                       players={gamePlayers}
-                      isAdmin={gameData.adminId === currentUserId}
+                      isAdmin={gameData?.adminId === currentUserId}
                       onBackToLogin={handleBackToLogin}
                       onPlayAgain={handleAdminLogin}
                       currentUserId={currentUserId}
@@ -217,6 +248,8 @@ export default function App() {
                       appId={appId}
                       onBackToRoleSelection={() => window.history.back()}
                       onSignOut={() => signOut()}
+                      connectionError={connectionError}
+                      retryCount={retryCount}
                     />
                   ) : (
                     <Navigate to="/role" replace />
