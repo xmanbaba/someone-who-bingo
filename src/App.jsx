@@ -80,8 +80,9 @@ export default function App() {
             gamePlayers,
             loading,
             isGeneratingAskMore,
-            connectionError, // This comes from the updated AuthAndGameHandler
-            retryCount,      // This too
+            connectionError,
+            retryCount,
+            isAdmin, // Use the isAdmin from AuthAndGameHandler
             db,
             appId,
             geminiApiKey,
@@ -174,38 +175,43 @@ export default function App() {
                 }
               />
 
-              {/* Waiting room - FIXED: More tolerant of connection issues */}
+              {/* Waiting room - FIXED: Allow waiting room during status transitions */}
               <Route
                 path="/waiting/:gameId"
                 element={
-                  shouldShowGameRoute(gameId, gameData, connectionError, "waiting") ? (
-                    <WaitingRoom
-                      game={gameData}
-                      players={gamePlayers}
-                      isAdmin={gameData?.adminId === currentUserId}
-                      roomCode={gameId}
-                      db={db}
-                      appId={appId}
-                      showError={(msg) => alert(`error: ${msg}`)}
-                      onAskMore={handleAskMore}
-                      currentUserId={currentUserId}
-                      isGeneratingAskMore={isGeneratingAskMore}
-                      onBackToLogin={handleBackToLogin}
-                      showSuccess={(msg) => alert(`success: ${msg}`)}
-                      connectionError={connectionError}
-                      retryCount={retryCount}
-                    />
+                  shouldShowGameRoute(gameId, gameData, connectionError) ? (
+                    gameData?.status === "playing" ? (
+                      <Navigate to={`/play/${gameId}`} replace />
+                    ) : (
+                      <WaitingRoom
+                        game={gameData}
+                        players={gamePlayers}
+                        isAdmin={isAdmin || gameData?.adminId === currentUserId || gameData?.createdBy === currentUserId}
+                        roomCode={gameId}
+                        db={db}
+                        appId={appId}
+                        showError={(msg) => alert(`error: ${msg}`)}
+                        onAskMore={handleAskMore}
+                        currentUserId={currentUserId}
+                        isGeneratingAskMore={isGeneratingAskMore}
+                        onBackToLogin={handleBackToLogin}
+                        showSuccess={(msg) => alert(`success: ${msg}`)}
+                        connectionError={connectionError}
+                        retryCount={retryCount}
+                      />
+                    )
                   ) : (
                     <Navigate to="/role" replace />
                   )
                 }
               />
 
-              {/* Playing - FIXED: More tolerant of connection issues */}
+              {/* Playing - FIXED: Use isAdmin from context and better status handling */}
               <Route
                 path="/play/:gameId"
                 element={
-                  shouldShowGameRoute(gameId, gameData, connectionError, "playing") ? (
+                  shouldShowGameRoute(gameId, gameData, connectionError) &&
+                  (gameData?.status === "playing" || connectionError) ? (
                     <PlayingGame
                       game={gameData}
                       player={playerData}
@@ -229,7 +235,7 @@ export default function App() {
                 }
               />
 
-              {/* Scoreboard - FIXED: More tolerant of connection issues */}
+              {/* Scoreboard - FIXED: Check both isAdmin and gameData fields */}
               <Route
                 path="/score/:gameId"
                 element={
@@ -238,7 +244,7 @@ export default function App() {
                     <Scoreboard
                       game={gameData}
                       players={gamePlayers}
-                      isAdmin={gameData?.adminId === currentUserId}
+                      isAdmin={isAdmin || gameData?.adminId === currentUserId || gameData?.createdBy === currentUserId}
                       onBackToLogin={handleBackToLogin}
                       onPlayAgain={handleAdminLogin}
                       currentUserId={currentUserId}

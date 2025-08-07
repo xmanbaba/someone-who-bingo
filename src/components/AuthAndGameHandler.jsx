@@ -55,10 +55,12 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
   const [isGeneratingAskMore, setIsGeneratingAskMore] = useState(false);
   const [connectionError, setConnectionError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false); // Track if current user is admin
 
   const gameUnsubscribeRef = useRef(null);
   const playersUnsubscribeRef = useRef(null);
   const retryTimeoutRef = useRef(null);
+  const isReconnectingRef = useRef(false); // Prevent multiple reconnection attempts
   const maxRetries = 3;
 
   const appId = typeof __app_id !== "undefined" ? __app_id : "default-app-id";
@@ -118,6 +120,12 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
   const setupGameListeners = useCallback((gameIdToWatch) => {
     if (!db || !gameIdToWatch || !currentUserId) return;
 
+    // Prevent multiple reconnection attempts
+    if (isReconnectingRef.current) {
+      console.log("Already reconnecting, skipping new listener setup");
+      return;
+    }
+
     // Clear existing listeners
     if (gameUnsubscribeRef.current) {
       gameUnsubscribeRef.current();
@@ -140,26 +148,29 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
       (docSnap) => {
         setConnectionError(false);
         setRetryCount(0);
+        isReconnectingRef.current = false;
         
         if (docSnap.exists()) {
           const data = docSnap.data();
-          setGameData({ id: docSnap.id, ...data });
+          const newGameData = { id: docSnap.id, ...data };
+          setGameData(newGameData);
+          
+          // Check if current user is admin
+          setIsAdmin(newGameData.createdBy === currentUserId);
         } else {
           console.log("Game document no longer exists");
-          // Don't immediately clear game state - the game might be temporarily unavailable
-          // Only clear if we get consistent "not exists" responses
           setGameData(prevData => prevData ? { ...prevData, status: 'not_found' } : null);
         }
       },
       (error) => {
         console.error("Error listening to game document:", error);
-        setConnectionError(true);
         
-        // Handle different types of errors
-        if (error.code === 'unavailable' || error.message.includes('QUIC_PROTOCOL_ERROR')) {
-          console.log("Connection issue detected, attempting to reconnect...");
+        // Only handle specific connection errors, not all errors
+        if (error.code === 'unavailable' || error.code === 'permission-denied') {
+          setConnectionError(true);
           handleConnectionError(gameIdToWatch);
         } else {
+          // For other errors, show message but don't auto-retry
           showMessageModal(`Error loading game: ${error.message}`, "error");
         }
       }
@@ -176,21 +187,23 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
       (snapshot) => {
         setConnectionError(false);
         setRetryCount(0);
+        isReconnectingRef.current = false;
         
         const playersList = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
         setGamePlayers(playersList);
+        
         const currentPlayer = playersList.find((p) => p.id === currentUserId);
         setPlayerData(currentPlayer);
       },
       (error) => {
         console.error("Error listening to players collection:", error);
-        setConnectionError(true);
         
-        if (error.code === 'unavailable' || error.message.includes('QUIC_PROTOCOL_ERROR')) {
-          console.log("Players connection issue detected, attempting to reconnect...");
+        // Only handle specific connection errors
+        if (error.code === 'unavailable' || error.code === 'permission-denied') {
+          setConnectionError(true);
           handleConnectionError(gameIdToWatch);
         } else {
           showMessageModal(`Error loading players: ${error.message}`, "error");
@@ -200,6 +213,12 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
   }, [db, currentUserId, appId, showMessageModal]);
 
   const handleConnectionError = useCallback((gameIdToReconnect) => {
+    // Prevent multiple simultaneous reconnection attempts
+    if (isReconnectingRef.current) {
+      console.log("Already attempting to reconnect, skipping");
+      return;
+    }
+
     if (retryCount >= maxRetries) {
       console.log("Max retries reached, stopping reconnection attempts");
       showMessageModal(
@@ -209,7 +228,8 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
       return;
     }
 
-    const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff, max 10 seconds
+    isReconnectingRef.current = true;
+    const retryDelay = Math.min(2000 * Math.pow(2, retryCount), 10000); // Exponential backoff, max 10 seconds
     console.log(`Attempting to reconnect in ${retryDelay}ms (attempt ${retryCount + 1}/${maxRetries})`);
     
     if (retryTimeoutRef.current) {
@@ -231,6 +251,7 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     return () => {
       if (gameUnsubscribeRef.current) gameUnsubscribeRef.current();
       if (playersUnsubscribeRef.current) playersUnsubscribeRef.current();
+      isReconnectingRef.current = false;
     };
   }, [gameId, setupGameListeners]);
 
@@ -241,6 +262,8 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     setGamePlayers([]);
     setConnectionError(false);
     setRetryCount(0);
+    setIsAdmin(false);
+    isReconnectingRef.current = false;
   };
 
   const handleJoinGame = async (roomCode, playerName, icebreaker) => {
@@ -253,6 +276,27 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     }
 
     try {
+      // First, check if we're already connected to this game
+      if (gameId === roomCode && gameData && playerData) {
+        console.log("Already connected to this game, updating player info");
+        const playerDocRef = doc(
+          db,
+          `artifacts/${appId}/public/data/bingoGames/${roomCode}/players`,
+          currentUserId
+        );
+        
+        await updateDoc(playerDocRef, {
+          name: playerName,
+          icebreaker: icebreaker,
+        });
+        
+        showMessageModal(
+          `Updated your info in game ${roomCode}!`,
+          "success"
+        );
+        return roomCode;
+      }
+
       const gameQuery = query(
         collection(db, `artifacts/${appId}/public/data/bingoGames`),
         where(documentId(), "==", roomCode)
@@ -281,8 +325,10 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         return;
       }
 
+      // Set game data first, then set up listeners
       setGameId(gameDataFound.id);
       setGameData(gameDataFound);
+      setIsAdmin(gameDataFound.createdBy === currentUserId);
 
       const playerDocRef = doc(
         db,
@@ -325,8 +371,10 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
   const handleGameCreated = (newGameId, initialGameData) => {
     setGameId(newGameId);
     setGameData(initialGameData);
+    setIsAdmin(true);
     setConnectionError(false);
     setRetryCount(0);
+    isReconnectingRef.current = false;
     showMessageModal(`Game created with code: ${newGameId}`, "success");
   };
 
@@ -334,6 +382,7 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     (isTimeUp) => {
       if (!db || !gameId || !gameData) return;
 
+      // Only handle time up scenario for game ending
       if (isTimeUp && gameData.status === "playing") {
         const gameRef = doc(
           db,
@@ -394,20 +443,31 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
   };
 
   const handleBackToLogin = () => {
+    // Clean up all state
     setGameId(null);
     setGameData(null);
     setPlayerData(null);
     setGamePlayers([]);
     setConnectionError(false);
     setRetryCount(0);
+    setIsAdmin(false);
+    isReconnectingRef.current = false;
     
     if (retryTimeoutRef.current) {
       clearTimeout(retryTimeoutRef.current);
     }
     
+    // Clean up listeners
+    if (gameUnsubscribeRef.current) {
+      gameUnsubscribeRef.current();
+      gameUnsubscribeRef.current = null;
+    }
+    if (playersUnsubscribeRef.current) {
+      playersUnsubscribeRef.current();
+      playersUnsubscribeRef.current = null;
+    }
+    
     showMessageModal("You have exited the game.", "info");
-    if (gameUnsubscribeRef.current) gameUnsubscribeRef.current();
-    if (playersUnsubscribeRef.current) playersUnsubscribeRef.current();
   };
 
   if (typeof children !== "function") {
@@ -432,6 +492,7 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         isGeneratingAskMore,
         connectionError,
         retryCount,
+        isAdmin, // Add isAdmin to the context
         db,
         appId,
         geminiApiKey,
