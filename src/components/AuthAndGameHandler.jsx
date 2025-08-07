@@ -200,6 +200,7 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
                     icebreaker: icebreaker,
                 });
                 showMessageModal(`Rejoined game ${gameDataFound.id} as ${playerName}!`, 'success');
+                return gameDataFound.id;
             }
 
         } catch (error) {

@@ -9,17 +9,26 @@ const LoginPage = ({ onJoinGame, showError, onSignOut }) => {
   const [icebreaker, setIcebreaker] = useState("");
 
   // Handler for the "Join Game" action
-  const handleJoinGame = () => {
-    // Validate inputs: ensure all fields are filled
-    if (!roomCode.trim() || !playerName.trim() || !icebreaker.trim()) {
-      showError("Please enter Room Code, Player Name, and a fun Icebreaker.");
-      return;
+  const handleJoinGame = async () => {
+  if (!roomCode.trim() || !playerName.trim() || !icebreaker.trim()) {
+    showError("Please enter Room Code, Player Name, and a fun Icebreaker.");
+    return;
+  }
+
+  try {
+    const joinedGameId = await onJoinGame(
+      roomCode.trim(),
+      playerName.trim(),
+      icebreaker.trim()
+    );
+    if (joinedGameId) {
+      navigate(`/waiting/${joinedGameId}`);
     }
-    // Call the parent component's onJoinGame function with trimmed values
-    onJoinGame(roomCode.trim(), playerName.trim(), icebreaker.trim());
-    // Navigate to waiting room after successful join
-    navigate(`/waiting/${roomCode.trim()}`);
-  };
+  } catch (err) {
+    showError("Failed to join game. Please try again.");
+  }
+};
+
 
   return (
     // Main container for the login page, with modern styling
