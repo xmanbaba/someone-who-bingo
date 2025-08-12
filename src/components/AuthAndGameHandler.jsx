@@ -30,7 +30,7 @@ import {
   documentId,
   connectFirestoreEmulator,
 } from "firebase/firestore";
-import { useNavigate, Navigate} from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBNkwfo1M0YKkOLoguixQhn42qwyCxFX4c",
@@ -43,8 +43,17 @@ const firebaseConfig = {
 
 const geminiApiKey = "AIzaSyANMkgevmn9i8mdRu_Pa0W-M4AI16rnOzI";
 
+// Session storage keys
+const SESSION_KEYS = {
+  GAME_ID: "bingo_game_id",
+  PLAYER_NAME: "bingo_player_name",
+  PLAYER_ICEBREAKER: "bingo_player_icebreaker",
+  LAST_ROUTE: "bingo_last_route",
+};
+
 const AuthAndGameHandler = ({ children, showMessageModal }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -56,15 +65,59 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
   const [isGeneratingAskMore, setIsGeneratingAskMore] = useState(false);
   const [connectionError, setConnectionError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  const [isAdmin, setIsAdmin] = useState(false); // Track if current user is admin
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [sessionRestored, setSessionRestored] = useState(false);
 
   const gameUnsubscribeRef = useRef(null);
   const playersUnsubscribeRef = useRef(null);
   const retryTimeoutRef = useRef(null);
-  const isReconnectingRef = useRef(false); // Prevent multiple reconnection attempts
+  const isReconnectingRef = useRef(false);
   const maxRetries = 3;
 
   const appId = typeof __app_id !== "undefined" ? __app_id : "default-app-id";
+
+  // Session management functions
+  const saveSession = useCallback((data) => {
+    try {
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          sessionStorage.setItem(
+            key,
+            typeof value === "string" ? value : JSON.stringify(value)
+          );
+        }
+      });
+    } catch (error) {
+      console.warn("Failed to save session data:", error);
+    }
+  }, []);
+
+  const getSession = useCallback((key) => {
+    try {
+      const value = sessionStorage.getItem(key);
+      if (!value) return null;
+
+      // Try to parse as JSON, fall back to string
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
+      }
+    } catch (error) {
+      console.warn("Failed to get session data:", error);
+      return null;
+    }
+  }, []);
+
+  const clearSession = useCallback(() => {
+    try {
+      Object.values(SESSION_KEYS).forEach((key) => {
+        sessionStorage.removeItem(key);
+      });
+    } catch (error) {
+      console.warn("Failed to clear session data:", error);
+    }
+  }, []);
 
   // Clear retry timeout on cleanup
   useEffect(() => {
@@ -75,16 +128,64 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     };
   }, []);
 
+  // Auto-navigation when game status changes
   useEffect(() => {
-  if (
-    gameId &&
-    (gameData?.status === "scoring" || gameData?.status === "ended")
-  ) {
-    console.log("✅ Game finished. Navigating to scoreboard...");
-    navigate(`/score/${gameId}`, { replace: true });
-  }
-}, [gameData?.status, gameId, navigate]);
+    if (gameId && gameData?.status) {
+      const currentPath = location.pathname;
 
+      // Save current route to session
+      saveSession({ [SESSION_KEYS.LAST_ROUTE]: currentPath });
+
+      // Navigate based on game status
+      if (gameData.status === "playing" && !currentPath.includes("/play/")) {
+        navigate(`/play/${gameId}`, { replace: true });
+      } else if (
+        (gameData.status === "scoring" || gameData.status === "ended") &&
+        !currentPath.includes("/score/")
+      ) {
+        navigate(`/score/${gameId}`, { replace: true });
+      }
+    }
+  }, [gameData?.status, gameId, navigate, location.pathname, saveSession]);
+
+  // Check for URL-based game join on auth state change
+  useEffect(() => {
+    if (currentUserId && !sessionRestored) {
+      const urlParams = new URLSearchParams(location.search);
+      const joinGameId = urlParams.get("join");
+      const pathGameId = location.pathname.split("/")[1];
+
+      // Restore session data
+      const savedGameId = getSession(SESSION_KEYS.GAME_ID);
+      const savedPlayerName = getSession(SESSION_KEYS.PLAYER_NAME);
+      const savedIcebreaker = getSession(SESSION_KEYS.PLAYER_ICEBREAKER);
+      const savedRoute = getSession(SESSION_KEYS.LAST_ROUTE);
+
+      // Prioritize URL-based join, then session restore
+      const targetGameId = joinGameId || pathGameId || savedGameId;
+
+      if (
+        targetGameId &&
+        targetGameId !== "auth" &&
+        targetGameId !== "role" &&
+        targetGameId !== "admin" &&
+        targetGameId !== "player"
+      ) {
+        if (savedPlayerName && savedIcebreaker) {
+          // Auto-rejoin with saved credentials
+          handleAutoJoinFromUrl(targetGameId, savedPlayerName, savedIcebreaker);
+        } else {
+          // Need to collect player info first
+          navigate(`/player/join?autoJoin=${targetGameId}`);
+        }
+      } else if (savedRoute && savedRoute !== "/auth" && savedRoute !== "/") {
+        // Restore last route if no specific game to join
+        navigate(savedRoute, { replace: true });
+      }
+
+      setSessionRestored(true);
+    }
+  }, [currentUserId, location, navigate, getSession, sessionRestored]);
 
   useEffect(() => {
     const initializeFirebase = async () => {
@@ -93,24 +194,15 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         const firestoreDb = getFirestore(app);
         const firebaseAuth = getAuth(app);
 
-        // Configure Firestore settings for better connection handling
-        if (typeof window !== "undefined") {
-          // Enable offline persistence
-          try {
-            // Note: enableNetwork and other settings might need to be adjusted based on your needs
-          } catch (persistenceError) {
-            console.warn(
-              "Could not enable offline persistence:",
-              persistenceError
-            );
-          }
-        }
-
         setDb(firestoreDb);
         setAuth(firebaseAuth);
 
         const unsubscribeAuth = onAuthStateChanged(firebaseAuth, (user) => {
           setCurrentUserId(user ? user.uid : null);
+          if (!user) {
+            // Clear session when user logs out
+            clearSession();
+          }
           setLoading(false);
         });
 
@@ -130,13 +222,12 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     };
 
     initializeFirebase();
-  }, [showMessageModal]);
+  }, [showMessageModal, clearSession]);
 
   const setupGameListeners = useCallback(
     (gameIdToWatch) => {
       if (!db || !gameIdToWatch || !currentUserId) return;
 
-      // Prevent multiple reconnection attempts
       if (isReconnectingRef.current) {
         console.log("Already reconnecting, skipping new listener setup");
         return;
@@ -158,7 +249,7 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         gameIdToWatch
       );
 
-      // Game document listener with improved error handling
+      // Game document listener
       gameUnsubscribeRef.current = onSnapshot(
         gameDocRef,
         (docSnap) => {
@@ -170,9 +261,13 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
             const data = docSnap.data();
             const newGameData = { id: docSnap.id, ...data };
             setGameData(newGameData);
+            setIsAdmin(
+              newGameData.createdBy === currentUserId ||
+                newGameData.adminId === currentUserId
+            );
 
-            // Check if current user is admin
-            setIsAdmin(newGameData.createdBy === currentUserId);
+            // Save to session
+            saveSession({ [SESSION_KEYS.GAME_ID]: gameIdToWatch });
           } else {
             console.log("Game document no longer exists");
             setGameData((prevData) =>
@@ -182,8 +277,6 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         },
         (error) => {
           console.error("Error listening to game document:", error);
-
-          // Only handle specific connection errors, not all errors
           if (
             error.code === "unavailable" ||
             error.code === "permission-denied"
@@ -191,13 +284,12 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
             setConnectionError(true);
             handleConnectionError(gameIdToWatch);
           } else {
-            // For other errors, show message but don't auto-retry
             showMessageModal(`Error loading game: ${error.message}`, "error");
           }
         }
       );
 
-      // Players collection listener with improved error handling
+      // Players collection listener
       const playersCollectionRef = collection(
         db,
         `artifacts/${appId}/public/data/bingoGames/${gameIdToWatch}/players`
@@ -218,11 +310,17 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
 
           const currentPlayer = playersList.find((p) => p.id === currentUserId);
           setPlayerData(currentPlayer);
+
+          // Save player data to session if it exists
+          if (currentPlayer) {
+            saveSession({
+              [SESSION_KEYS.PLAYER_NAME]: currentPlayer.name,
+              [SESSION_KEYS.PLAYER_ICEBREAKER]: currentPlayer.icebreaker,
+            });
+          }
         },
         (error) => {
           console.error("Error listening to players collection:", error);
-
-          // Only handle specific connection errors
           if (
             error.code === "unavailable" ||
             error.code === "permission-denied"
@@ -238,12 +336,11 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         }
       );
     },
-    [db, currentUserId, appId, showMessageModal]
+    [db, currentUserId, appId, showMessageModal, saveSession]
   );
 
   const handleConnectionError = useCallback(
     (gameIdToReconnect) => {
-      // Prevent multiple simultaneous reconnection attempts
       if (isReconnectingRef.current) {
         console.log("Already attempting to reconnect, skipping");
         return;
@@ -259,7 +356,7 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
       }
 
       isReconnectingRef.current = true;
-      const retryDelay = Math.min(2000 * Math.pow(2, retryCount), 10000); // Exponential backoff, max 10 seconds
+      const retryDelay = Math.min(2000 * Math.pow(2, retryCount), 10000);
       console.log(
         `Attempting to reconnect in ${retryDelay}ms (attempt ${
           retryCount + 1
@@ -300,6 +397,91 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     setRetryCount(0);
     setIsAdmin(false);
     isReconnectingRef.current = false;
+    clearSession();
+  };
+
+  const handleAutoJoinFromUrl = async (
+    roomCode,
+    savedName = null,
+    savedIcebreaker = null
+  ) => {
+    if (!db || !currentUserId) return;
+
+    try {
+      // Check if game exists first
+      const gameQuery = query(
+        collection(db, `artifacts/${appId}/public/data/bingoGames`),
+        where(documentId(), "==", roomCode)
+      );
+      const gameSnapshot = await getDocs(gameQuery);
+
+      if (gameSnapshot.empty) {
+        showMessageModal("Game not found. Please check the code.", "error");
+        navigate("/role");
+        return;
+      }
+
+      const gameDoc = gameSnapshot.docs[0];
+      const gameDataFound = { id: gameDoc.id, ...gameDoc.data() };
+
+      // Set up game state
+      setGameId(gameDataFound.id);
+      setGameData(gameDataFound);
+      setIsAdmin(
+        gameDataFound.createdBy === currentUserId ||
+          gameDataFound.adminId === currentUserId
+      );
+
+      // Check if player already exists in this game
+      const playerDocRef = doc(
+        db,
+        `artifacts/${appId}/public/data/bingoGames/${gameDataFound.id}/players`,
+        currentUserId
+      );
+      const playerDocSnap = await getDoc(playerDocRef);
+
+      if (playerDocSnap.exists()) {
+        // Player already in game - rejoin
+        const existingPlayer = playerDocSnap.data();
+        showMessageModal(`Rejoined game as ${existingPlayer.name}!`, "success");
+
+        // Navigate to appropriate screen based on game status
+        switch (gameDataFound.status) {
+          case "waiting":
+            navigate(`/waiting/${gameDataFound.id}`);
+            break;
+          case "playing":
+            navigate(`/play/${gameDataFound.id}`);
+            break;
+          case "scoring":
+          case "ended":
+            navigate(`/score/${gameDataFound.id}`);
+            break;
+          default:
+            navigate(`/waiting/${gameDataFound.id}`);
+        }
+      } else if (savedName && savedIcebreaker) {
+        // Auto-join with saved credentials
+        await setDoc(playerDocRef, {
+          name: savedName,
+          checkedSquares: [],
+          submissionTime: null,
+          isSubmitted: false,
+          score: 0,
+          icebreaker: savedIcebreaker,
+        });
+
+        showMessageModal(`Joined game as ${savedName}!`, "success");
+        navigate(`/waiting/${gameDataFound.id}`);
+      } else {
+        // Need player info - redirect to join page with auto-join flag
+        navigate(`/player/join?autoJoin=${roomCode}`);
+      }
+    } catch (error) {
+      console.error("Error auto-joining game:", error);
+      showMessageModal(`Failed to join game: ${error.message}`, "error");
+      navigate("/role");
+    }
   };
 
   const handleJoinGame = async (roomCode, playerName, icebreaker) => {
@@ -312,7 +494,7 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     }
 
     try {
-      // First, check if we're already connected to this game
+      // Check if we're already connected to this game
       if (gameId === roomCode && gameData && playerData) {
         console.log("Already connected to this game, updating player info");
         const playerDocRef = doc(
@@ -324,6 +506,13 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         await updateDoc(playerDocRef, {
           name: playerName,
           icebreaker: icebreaker,
+        });
+
+        // Save to session
+        saveSession({
+          [SESSION_KEYS.GAME_ID]: roomCode,
+          [SESSION_KEYS.PLAYER_NAME]: playerName,
+          [SESSION_KEYS.PLAYER_ICEBREAKER]: icebreaker,
         });
 
         showMessageModal(`Updated your info in game ${roomCode}!`, "success");
@@ -361,7 +550,10 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
       // Set game data first, then set up listeners
       setGameId(gameDataFound.id);
       setGameData(gameDataFound);
-      setIsAdmin(gameDataFound.createdBy === currentUserId);
+      setIsAdmin(
+        gameDataFound.createdBy === currentUserId ||
+          gameDataFound.adminId === currentUserId
+      );
 
       const playerDocRef = doc(
         db,
@@ -394,6 +586,13 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         );
       }
 
+      // Save to session
+      saveSession({
+        [SESSION_KEYS.GAME_ID]: gameDataFound.id,
+        [SESSION_KEYS.PLAYER_NAME]: playerName,
+        [SESSION_KEYS.PLAYER_ICEBREAKER]: icebreaker,
+      });
+
       return gameDataFound.id;
     } catch (error) {
       console.error("Error joining game:", error);
@@ -408,37 +607,54 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
     setConnectionError(false);
     setRetryCount(0);
     isReconnectingRef.current = false;
+
+    // Save to session
+    saveSession({
+      [SESSION_KEYS.GAME_ID]: newGameId,
+    });
+
     showMessageModal(`Game created with code: ${newGameId}`, "success");
   };
 
   const handleFinishGame = useCallback(
-  (isTimeUp) => {
-    if (!db || !gameId || !gameData) return;
+    (isTimeUp) => {
+      if (!db || !gameId || !gameData) return;
 
-    if (gameData.status !== "playing") {
-      console.log("Game is not in a playable state, skipping finish");
-      return;
-    }
+      if (gameData.status !== "playing") {
+        console.log("Game is not in a playable state, skipping finish");
+        return;
+      }
 
-    const gameRef = doc(
-      db,
-      `artifacts/${appId}/public/data/bingoGames`,
-      gameId
-    );
+      // Only allow game to end if:
+      // 1. Time is up, OR
+      // 2. Current user is the admin
+      if (
+        !isTimeUp &&
+        gameData.adminId !== currentUserId &&
+        gameData.createdBy !== currentUserId
+      ) {
+        console.log("Only admin or timer can end the game");
+        return;
+      }
 
-    const scoringEndTime = Date.now() + 5 * 60 * 1000;
+      const gameRef = doc(
+        db,
+        `artifacts/${appId}/public/data/bingoGames`,
+        gameId
+      );
 
-    updateDoc(gameRef, {
-      status: "scoring",
-      scoringEndTime,
-      endedBy: isTimeUp ? "timer" : currentUserId,
-    }).catch((error) =>
-      console.error("Error setting scoring status:", error)
-    );
-  },
-  [db, gameId, gameData, appId, currentUserId, isAdmin]
-);
+      const scoringEndTime = Date.now() + 5 * 60 * 1000;
 
+      updateDoc(gameRef, {
+        status: "scoring",
+        scoringEndTime,
+        endedBy: isTimeUp ? "timer" : currentUserId,
+      }).catch((error) =>
+        console.error("Error setting scoring status:", error)
+      );
+    },
+    [db, gameId, gameData, appId, currentUserId]
+  );
 
   const handleAskMore = async (playerToAsk) => {
     setIsGeneratingAskMore(true);
@@ -507,6 +723,9 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
       playersUnsubscribeRef.current = null;
     }
 
+    // Clear session
+    clearSession();
+
     showMessageModal("You have exited the game.", "info");
   };
 
@@ -532,7 +751,7 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         isGeneratingAskMore,
         connectionError,
         retryCount,
-        isAdmin, // Add isAdmin to the context
+        isAdmin,
         db,
         appId,
         geminiApiKey,
@@ -542,6 +761,7 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
         handleFinishGame,
         handleAskMore,
         handleBackToLogin,
+        handleAutoJoinFromUrl,
         auth,
         createUserWithEmailAndPassword: (email, password) =>
           createUserWithEmailAndPassword(auth, email, password),
@@ -563,7 +783,14 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
             }
           }
         },
-        signOut: () => signOut(auth),
+        signOut: () => {
+          clearSession();
+          signOut(auth);
+        },
+        // Session management utilities
+        saveSession,
+        getSession,
+        clearSession,
       })}
     </>
   );

@@ -1,34 +1,55 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 
 // LoginPage Component: Handles an authenticated player joining a game
-const LoginPage = ({ onJoinGame, showError, onSignOut }) => {
+const LoginPage = ({ onJoinGame, showError, onSignOut, getSession }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [roomCode, setRoomCode] = useState("");
   const [playerName, setPlayerName] = useState("");
   const [icebreaker, setIcebreaker] = useState("");
 
+  // Load saved data and URL parameters on mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const autoJoinGameId = urlParams.get("autoJoin");
+
+    // Load from session storage
+    const savedName = getSession?.("bingo_player_name") || "";
+    const savedIcebreaker = getSession?.("bingo_player_icebreaker") || "";
+
+    // Set form values
+    if (autoJoinGameId) {
+      setRoomCode(autoJoinGameId);
+    }
+    if (savedName) {
+      setPlayerName(savedName);
+    }
+    if (savedIcebreaker) {
+      setIcebreaker(savedIcebreaker);
+    }
+  }, [location.search, getSession]);
+
   // Handler for the "Join Game" action
   const handleJoinGame = async () => {
-  if (!roomCode.trim() || !playerName.trim() || !icebreaker.trim()) {
-    showError("Please enter Room Code, Player Name, and a fun Icebreaker.");
-    return;
-  }
-
-  try {
-    const joinedGameId = await onJoinGame(
-      roomCode.trim(),
-      playerName.trim(),
-      icebreaker.trim()
-    );
-    if (joinedGameId) {
-      navigate(`/waiting/${joinedGameId}`);
+    if (!roomCode.trim() || !playerName.trim() || !icebreaker.trim()) {
+      showError("Please enter Room Code, Player Name, and a fun Icebreaker.");
+      return;
     }
-  } catch (err) {
-    showError("Failed to join game. Please try again.");
-  }
-};
 
+    try {
+      const joinedGameId = await onJoinGame(
+        roomCode.trim(),
+        playerName.trim(),
+        icebreaker.trim()
+      );
+      if (joinedGameId) {
+        navigate(`/waiting/${joinedGameId}`);
+      }
+    } catch (err) {
+      showError("Failed to join game. Please try again.");
+    }
+  };
 
   return (
     // Main container for the login page, with modern styling
@@ -68,6 +89,18 @@ const LoginPage = ({ onJoinGame, showError, onSignOut }) => {
           </svg>
           Networking Bingo
         </h2>
+
+        {/* Show auto-join info if applicable */}
+        {new URLSearchParams(location.search).get("autoJoin") && (
+          <div className="bg-blue-100 border border-blue-300 p-3 rounded-lg mb-6 text-center">
+            <p className="text-sm font-semibold text-blue-800">
+              🎮 After login, you'll join game:{" "}
+              <span className="font-mono">
+                {new URLSearchParams(location.search).get("autoJoin")}
+              </span>
+            </p>
+          </div>
+        )}
 
         {/* Section for Joining an Existing Game */}
         <div className="bg-blue-50 border border-blue-100 p-6 rounded-2xl shadow-inner space-y-5 mb-8">

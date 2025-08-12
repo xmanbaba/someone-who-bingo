@@ -128,42 +128,46 @@ const Scoreboard = ({
   players,
   isAdmin,
   onPlayAgain,
+  onBackToLogin,
   currentUserId,
   db,
   appId,
 }) => {
   const navigate = useNavigate();
   const [openBoard, setOpenBoard] = useState(null);
-  const now = Date.now();
-  const maxTime = game.timerDuration * 60 * 1000;
 
- const computeScores = (p) => {
-  const filled = p?.checkedSquares?.length || 0;
-  const correct = (p?.checkedSquares || []).filter(
-    (s) => s.correct === true
-  ).length;
+  const computeScores = (p) => {
+    const filled = p?.checkedSquares?.length || 0;
+    const correct = (p?.checkedSquares || []).filter(
+      (s) => s.correct === true
+    ).length;
 
-  const completionScore = (filled / (game.gridSize * game.gridSize)) * 40;
-  const accuracyScore = filled === 0 ? 0 : (correct / filled) * 60;
+    const completionScore = (filled / (game.gridSize * game.gridSize)) * 40;
+    const accuracyScore = filled === 0 ? 0 : (correct / filled) * 60;
 
-  // Time score: lower is better (in seconds)
-  const timeScore =
-    p?.endTime && p?.startTime
-      ? (p.endTime - p.startTime) / 1000
-      : Infinity; // fallback for missing data
+    // Time score: lower is better (in seconds)
+    const timeScore =
+      p?.endTime && p?.startTime ? (p.endTime - p.startTime) / 1000 : Infinity; // fallback for missing data
 
-  return {
-    completionScore,
-    accuracyScore,
-    aggregate: completionScore + accuracyScore,
-    timeScore,
+    return {
+      completionScore,
+      accuracyScore,
+      aggregate: completionScore + accuracyScore,
+      timeScore,
+    };
   };
-};
-
 
   const sortedPlayers = [...players]
     .map((p) => ({ ...p, ...computeScores(p) }))
     .sort((a, b) => b.aggregate - a.aggregate);
+
+  const handleShareResults = () => {
+    const shareUrl = `${window.location.origin}/score/${game.id}`;
+    navigator.clipboard
+      .writeText(shareUrl)
+      .then(() => alert("Scoreboard link copied!"))
+      .catch(() => alert("Copy failed – please copy manually"));
+  };
 
   return (
     <>
@@ -181,6 +185,12 @@ const Scoreboard = ({
               {game.gridSize}×{game.gridSize}
             </strong>
           </p>
+          <button
+            onClick={handleShareResults}
+            className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
+          >
+            🔗 Share Scoreboard
+          </button>
         </div>
 
         {/* Player Table */}
@@ -205,12 +215,15 @@ const Scoreboard = ({
                   }`}
                   onClick={() => setOpenBoard(p)}
                 >
-                  <td className="px-3 py-2">{i + 1}</td>
+                  <td className="px-3 py-2">
+                    {i === 0 && "🥇"} {i === 1 && "🥈"} {i === 2 && "🥉"}{" "}
+                    {i + 1}
+                  </td>
                   <td className="px-3 py-2">
                     {p.name} {p.id === currentUserId && "(You)"}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    {p.timeScore.toFixed(1)}
+                    {p.timeScore === Infinity ? "N/A" : p.timeScore.toFixed(1)}
                   </td>
                   <td className="px-3 py-2 text-right">
                     {p.completionScore.toFixed(1)}
@@ -239,8 +252,9 @@ const Scoreboard = ({
           )}
           <button
             onClick={() => {
-              handleBackToLogin();
-              navigate("/role")}}
+              onBackToLogin();
+              navigate("/role");
+            }}
             className="flex-1 py-3 rounded-xl text-white text-lg bg-gray-600 hover:bg-gray-700"
           >
             🚪 Exit

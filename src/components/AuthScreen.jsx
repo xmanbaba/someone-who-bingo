@@ -1,18 +1,30 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+
 // AuthScreen Component
 const AuthScreen = ({
   showMessageModal,
-  onAuthSuccess,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithGoogle,
+  onAutoJoinFromUrl,
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [gameToJoin, setGameToJoin] = useState(null);
+
+  // Check for URL parameters on mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const joinGameId = urlParams.get("join");
+    if (joinGameId) {
+      setGameToJoin(joinGameId);
+    }
+  }, [location.search]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,7 +37,13 @@ const AuthScreen = ({
         await createUserWithEmailAndPassword(email, password);
         showMessageModal("Account created!", "success");
       }
-      navigate("/role")
+
+      // After successful auth, handle game joining if needed
+      if (gameToJoin) {
+        navigate(`/waiting/${gameToJoin}`);
+      } else {
+        navigate("/role");
+      }
     } catch (error) {
       let msg = "Authentication failed.";
       switch (error.code) {
@@ -56,7 +74,13 @@ const AuthScreen = ({
     try {
       await signInWithGoogle();
       showMessageModal("Signed in with Google!", "success");
-      navigate("/role");  
+
+      // After successful auth, handle game joining if needed
+      if (gameToJoin) {
+        navigate(`/waiting/${gameToJoin}`);
+      } else {
+        navigate("/role");
+      }
     } catch (error) {
       showMessageModal(`Google sign-in failed: ${error.message}`, "error");
     } finally {
@@ -86,6 +110,15 @@ const AuthScreen = ({
           </svg>
           Networking Bingo
         </h2>
+
+        {gameToJoin && (
+          <div className="bg-blue-100 border border-blue-300 p-3 rounded-lg mb-4 text-center">
+            <p className="text-sm font-semibold text-blue-800">
+              🎮 You're joining game:{" "}
+              <span className="font-mono">{gameToJoin}</span>
+            </p>
+          </div>
+        )}
 
         <h3 className="text-xl sm:text-2xl font-bold text-center text-blue-700 mb-6">
           {isLoginMode ? "Log In" : "Sign Up"}
