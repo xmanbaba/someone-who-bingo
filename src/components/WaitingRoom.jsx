@@ -38,7 +38,22 @@ const WaitingRoom = ({
       .catch(() => showError("Copy failed – please copy manually"));
   };
 
-  const qrLink = `https://bingo-game.com?room=${roomCode}`;
+  const handleShareLink = () => {
+    const shareUrl = `${window.location.origin}/${roomCode}`;
+    navigator.clipboard
+      .writeText(shareUrl)
+      .then(() =>
+        showSuccess("Share link copied! Send this to players to auto-join.")
+      )
+      .catch(() => showError("Copy failed – please copy manually"));
+  };
+
+  const generateQRCode = () => {
+    const shareUrl = `${window.location.origin}/${roomCode}`;
+    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+      shareUrl
+    )}`;
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 bg-white rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-sm md:max-w-md mx-auto border-4 border-blue-300">
@@ -47,7 +62,7 @@ const WaitingRoom = ({
       </h2>
 
       {/* Room Code Card */}
-      <div className="bg-blue-100 border border-blue-300 p-3 rounded-xl shadow-md text-center space-y-2">
+      <div className="bg-blue-100 border border-blue-300 p-3 rounded-xl shadow-md text-center space-y-3">
         <p className="text-sm sm:text-base font-bold">Game Room Code</p>
         <div className="flex items-center justify-center space-x-2">
           <span
@@ -68,21 +83,39 @@ const WaitingRoom = ({
           <button
             onClick={handleCopyRoomCode}
             className="p-1.5 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition transform hover:scale-110"
-            aria-label="Copy"
+            aria-label="Copy Room Code"
           >
             <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12V1zm3 4H8C6.9 5 6 5.9 6 7v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
             </svg>
           </button>
         </div>
-        <a
-          href={qrLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-700 underline text-xs break-words"
-        >
-          Share link / QR
-        </a>
+
+        {/* Share Options */}
+        <div className="space-y-2">
+          <button
+            onClick={handleShareLink}
+            className="w-full py-2 px-4 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 transition transform hover:scale-105 text-sm"
+          >
+            🔗 Copy Share Link
+          </button>
+
+          {/* QR Code */}
+          <details className="text-center">
+            <summary className="cursor-pointer text-blue-700 text-sm font-semibold hover:text-blue-800">
+              📱 Show QR Code
+            </summary>
+            <div className="mt-2 p-2 bg-white rounded border">
+              <img
+                src={generateQRCode()}
+                alt="QR Code for game join"
+                className="w-32 h-32 mx-auto border border-gray-200 rounded"
+                loading="lazy"
+              />
+              <p className="text-xs text-gray-600 mt-1">Scan to join game</p>
+            </div>
+          </details>
+        </div>
       </div>
 
       {/* Game Details */}
@@ -134,7 +167,9 @@ const WaitingRoom = ({
                 className="bg-white p-1.5 rounded shadow-sm flex flex-col"
               >
                 <div className="flex items-start justify-between">
-                  <span className="font-semibold break-all">👤 {p.name}</span>
+                  <span className="font-semibold break-all">
+                    👤 {p.name} {p.id === currentUserId && "(You)"}
+                  </span>
                   {p.id !== currentUserId && p.icebreaker && (
                     <button
                       onClick={() => onAskMore(p)}
@@ -147,13 +182,21 @@ const WaitingRoom = ({
                 </div>
                 {p.icebreaker && (
                   <p className="text-gray-600 italic text-xs break-words mt-0.5">
-                    “{p.icebreaker}”
+                    "{p.icebreaker}"
                   </p>
                 )}
               </div>
             ))
           )}
         </div>
+      </div>
+
+      {/* Sharing Instructions */}
+      <div className="bg-yellow-50 border border-yellow-300 p-3 rounded-lg">
+        <p className="text-xs text-yellow-800">
+          <strong>💡 Tip:</strong> Use the share link or QR code above to let
+          others join instantly!
+        </p>
       </div>
 
       {/* Controls */}
@@ -168,7 +211,7 @@ const WaitingRoom = ({
                 : "bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:scale-105"
             }`}
           >
-            🏁 Start
+            🏁 Start Game
           </button>
           <button
             onClick={() => navigate("/role")}
@@ -180,7 +223,7 @@ const WaitingRoom = ({
       ) : (
         <div className="flex flex-col items-center gap-2">
           <p className="text-center text-gray-600 italic text-xs animate-bounce-slow">
-            Waiting for admin…
+            Waiting for admin to start the game…
           </p>
           <button
             onClick={() => navigate("/role")}

@@ -171,9 +171,9 @@ const PlayingGame = ({
         ),
         { isSubmitted: true, submissionTime: Date.now() }
       );
-      showSuccess(
-        "Card submitted! Game continues until time runs out or admin ends it."
-      );
+      // showSuccess(
+      //   "Card submitted! Game continues until time runs out or admin ends it."
+      // );
       // REMOVED: onFinishGame(false) - submitting shouldn't end the game
     } catch (e) {
       console.error("Error submitting card:", e);
@@ -290,13 +290,13 @@ const PlayingGame = ({
       </div>
 
       {/* Game Status Info */}
-      <div className="bg-yellow-50 border border-yellow-300 p-3 rounded-lg">
+      {/* <div className="bg-yellow-50 border border-yellow-300 p-3 rounded-lg">
         <p className="text-sm text-yellow-800">
           <strong>Game continues until:</strong> Timer runs out OR Admin ends
           the game. Submitting your card early doesn't end the game for
           everyone!
         </p>
-      </div>
+      </div> */}
 
       {/* Grid */}
       {game.gridSize && (

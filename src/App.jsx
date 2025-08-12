@@ -1,5 +1,13 @@
 import React from "react";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate,  } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+  useParams,
+  useLocation,
+} from "react-router-dom";
 import AuthAndGameHandler from "./components/AuthAndGameHandler";
 import { useEffect } from "react";
 /* Screens */
@@ -39,28 +47,42 @@ const LoadingScreen = () => (
   </div>
 );
 
+// Component to handle deep linking to games
+const GameDeepLink = ({ children }) => {
+  const { gameId: urlGameId } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  return children({ urlGameId, location, navigate });
+};
+
 // Helper function to determine if we should show a game route or redirect
-const shouldShowGameRoute = (gameId, gameData, connectionError, expectedStatus = null) => {
+const shouldShowGameRoute = (
+  gameId,
+  gameData,
+  connectionError,
+  expectedStatus = null
+) => {
   // If there's a connection error, allow the route to show (don't redirect)
   if (connectionError && gameId) {
     return true;
   }
-  
+
   // If no gameId at all, redirect
   if (!gameId) {
     return false;
   }
-  
+
   // If we have gameId but no gameData yet, allow it (might be loading)
   if (!gameData) {
     return true;
   }
-  
+
   // If we expect a specific status, check it
   if (expectedStatus) {
     return gameData.status === expectedStatus;
   }
-  
+
   // Default to allowing the route
   return true;
 };
@@ -82,7 +104,7 @@ export default function App() {
             isGeneratingAskMore,
             connectionError,
             retryCount,
-            isAdmin, // Use the isAdmin from AuthAndGameHandler
+            isAdmin,
             db,
             appId,
             geminiApiKey,
@@ -92,24 +114,15 @@ export default function App() {
             handleFinishGame,
             handleAskMore,
             handleBackToLogin,
+            handleAutoJoinFromUrl,
             auth,
             createUserWithEmailAndPassword,
             signInWithEmailAndPassword,
             signInWithGoogle,
             signOut,
           } = props;
-          
-          const navigate = useNavigate();
 
-          // useEffect(() => {
-          //   if (
-          //     gameData?.status === "scoring" ||
-          //     gameData?.status === "ended"
-          //   ) {
-          //     console.log("✅ Game finished. Navigating to scoreboard...");
-          //     navigate(`/score/${gameId}`, { replace: true });
-          //   }
-          // }, [gameData?.status, gameId, navigate]);
+          const navigate = useNavigate();
 
           if (loading) return <LoadingScreen />;
 
@@ -117,6 +130,27 @@ export default function App() {
             <Routes>
               {/* Public routes */}
               <Route path="/" element={<Homepage />} />
+
+              {/* Deep link route for sharing game joins */}
+              <Route
+                path="/:gameId"
+                element={
+                  <GameDeepLink>
+                    {({ urlGameId }) => {
+                      // If user is not authenticated, redirect to auth with game info
+                      if (!currentUserId) {
+                        return (
+                          <Navigate to={`/auth?join=${urlGameId}`} replace />
+                        );
+                      }
+
+                      // If user is authenticated, auto-join the game
+                      return <Navigate to={`/waiting/${urlGameId}`} replace />;
+                    }}
+                  </GameDeepLink>
+                }
+              />
+
               <Route
                 path="/auth"
                 element={
@@ -129,6 +163,7 @@ export default function App() {
                       }
                       signInWithEmailAndPassword={signInWithEmailAndPassword}
                       signInWithGoogle={signInWithGoogle}
+                      onAutoJoinFromUrl={handleAutoJoinFromUrl}
                     />
                   ) : (
                     <Navigate to="/role" replace />
@@ -187,38 +222,65 @@ export default function App() {
                 }
               />
 
-              {/* Waiting room - FIXED: Allow waiting room during status transitions */}
+              {/* Waiting room */}
               <Route
                 path="/waiting/:gameId"
                 element={
-                  shouldShowGameRoute(gameId, gameData, connectionError) ? (
-                    gameData?.status === "playing" ? (
-                      <Navigate to={`/play/${gameId}`} replace />
-                    ) : (
-                      <WaitingRoom
-                        game={gameData}
-                        players={gamePlayers}
-                        isAdmin={isAdmin || gameData?.adminId === currentUserId || gameData?.createdBy === currentUserId}
-                        roomCode={gameId}
-                        db={db}
-                        appId={appId}
-                        showError={(msg) => alert(`error: ${msg}`)}
-                        onAskMore={handleAskMore}
-                        currentUserId={currentUserId}
-                        isGeneratingAskMore={isGeneratingAskMore}
-                        onBackToLogin={handleBackToLogin}
-                        showSuccess={(msg) => alert(`success: ${msg}`)}
-                        connectionError={connectionError}
-                        retryCount={retryCount}
-                      />
-                    )
-                  ) : (
-                    <Navigate to="/role" replace />
-                  )
+                  <GameDeepLink>
+                    {({ urlGameId, navigate }) => {
+                      // Auto-join logic for deep links
+                      useEffect(() => {
+                        if (
+                          currentUserId &&
+                          urlGameId &&
+                          !gameId &&
+                          urlGameId !== gameId
+                        ) {
+                          handleAutoJoinFromUrl(urlGameId, navigate);
+                        }
+                      }, [currentUserId, urlGameId, gameId]);
+
+                      return shouldShowGameRoute(
+                        gameId,
+                        gameData,
+                        connectionError
+                      ) ? (
+                        gameData?.status === "playing" ? (
+                          <Navigate to={`/play/${gameId}`} replace />
+                        ) : gameData?.status === "scoring" ||
+                          gameData?.status === "ended" ? (
+                          <Navigate to={`/score/${gameId}`} replace />
+                        ) : (
+                          <WaitingRoom
+                            game={gameData}
+                            players={gamePlayers}
+                            isAdmin={
+                              isAdmin ||
+                              gameData?.adminId === currentUserId ||
+                              gameData?.createdBy === currentUserId
+                            }
+                            roomCode={gameId}
+                            db={db}
+                            appId={appId}
+                            showError={(msg) => alert(`error: ${msg}`)}
+                            onAskMore={handleAskMore}
+                            currentUserId={currentUserId}
+                            isGeneratingAskMore={isGeneratingAskMore}
+                            onBackToLogin={handleBackToLogin}
+                            showSuccess={(msg) => alert(`success: ${msg}`)}
+                            connectionError={connectionError}
+                            retryCount={retryCount}
+                          />
+                        )
+                      ) : (
+                        <Navigate to="/role" replace />
+                      );
+                    }}
+                  </GameDeepLink>
                 }
               />
 
-              {/* Playing - FIXED: Use isAdmin from context and better status handling */}
+              {/* Playing */}
               <Route
                 path="/play/:gameId"
                 element={
@@ -247,16 +309,22 @@ export default function App() {
                 }
               />
 
-              {/* Scoreboard - FIXED: Check both isAdmin and gameData fields */}
+              {/* Scoreboard */}
               <Route
                 path="/score/:gameId"
                 element={
                   shouldShowGameRoute(gameId, gameData, connectionError) &&
-                  (gameData?.status === "scoring" || gameData?.status === "ended" || connectionError) ? (
+                  (gameData?.status === "scoring" ||
+                    gameData?.status === "ended" ||
+                    connectionError) ? (
                     <Scoreboard
                       game={gameData}
                       players={gamePlayers}
-                      isAdmin={isAdmin || gameData?.adminId === currentUserId || gameData?.createdBy === currentUserId}
+                      isAdmin={
+                        isAdmin ||
+                        gameData?.adminId === currentUserId ||
+                        gameData?.createdBy === currentUserId
+                      }
                       onBackToLogin={handleBackToLogin}
                       onPlayAgain={handleAdminLogin}
                       currentUserId={currentUserId}
