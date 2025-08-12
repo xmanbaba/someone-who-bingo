@@ -16,8 +16,8 @@ const PlayingGame = ({
   db,
   appId,
   onSignOut,
-  connectionError, // Added from updated App.jsx
-  retryCount,      // Added from updated App.jsx
+  connectionError,
+  retryCount,
 }) => {
   const navigate = useNavigate();
   const [timeRemaining, setTimeRemaining] = useState(0);
@@ -30,11 +30,10 @@ const PlayingGame = ({
   const timerRef = useRef(null);
   const timerStartedRef = useRef(false);
 
-
   // Handle case where game or player data might be temporarily null during connection issues
   const getPlayerBoard = (questions, gridSize, checkedSquares) => {
     if (!questions || !gridSize) return [];
-    
+
     const board = [];
     const checkedMap = new Map(
       checkedSquares?.map((s) => [s.index, s.names]) || []
@@ -42,7 +41,7 @@ const PlayingGame = ({
     for (let i = 0; i < gridSize * gridSize; i++) {
       board.push({
         index: i,
-        question: questions[i] || `Question ${i + 1}`, // Fallback for missing questions
+        question: questions[i] || `Question ${i + 1}`,
         isChecked: checkedMap.has(i),
         names: checkedMap.get(i) || [],
       });
@@ -50,9 +49,10 @@ const PlayingGame = ({
     return board;
   };
 
-  const playerBoard = game && game.questions && game.gridSize
-    ? getPlayerBoard(game.questions, game.gridSize, player?.checkedSquares)
-    : [];
+  const playerBoard =
+    game && game.questions && game.gridSize
+      ? getPlayerBoard(game.questions, game.gridSize, player?.checkedSquares)
+      : [];
 
   /* ---------- TIMER ---------- */
   useEffect(() => {
@@ -78,29 +78,16 @@ const PlayingGame = ({
         setTimeRemaining(nowRemaining);
         if (nowRemaining <= 0) {
           clearInterval(timerRef.current);
-          onFinishGame(true);
+          onFinishGame(true); // Only end game when timer runs out
         }
       }, 1000);
     }
     return () => timerRef.current && clearInterval(timerRef.current);
   }, [game?.status, game?.startTime, game?.timerDuration, onFinishGame]);
 
-  /* ---------- AUTO-SUBMIT ON FULL CARD ---------- */
-  useEffect(() => {
-    if (
-      game?.status === "playing" &&
-      game?.gridSize &&
-      player?.checkedSquares?.length === game.gridSize * game.gridSize &&
-      !player.isSubmitted
-    ) {
-      handleSubmitCard();
-    }
-  }, [
-    player?.checkedSquares?.length, // More specific dependency
-    game?.gridSize,
-    player?.isSubmitted,
-    game?.status,
-  ]);
+  // REMOVED: Auto-submit effect that was ending the game
+  // The game should NOT end when players complete their cards
+  // Only when timer runs out or admin ends it
 
   const formatTime = (ms) => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -120,7 +107,7 @@ const PlayingGame = ({
     setNameInput("");
     setIsModalOpen(true);
   };
-  
+
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedSquare(null);
@@ -131,10 +118,10 @@ const PlayingGame = ({
 
   const saveSquareChanges = async () => {
     if (!selectedSquare || !player?.id || !game?.id) return;
-    
+
     const updated = [...(player?.checkedSquares || [])];
     const existing = updated.find((s) => s.index === selectedSquare.index);
-    
+
     if (modalChecked) {
       if (existing) {
         existing.names = modalNames;
@@ -145,18 +132,17 @@ const PlayingGame = ({
       const idx = updated.findIndex((s) => s.index === selectedSquare.index);
       if (idx !== -1) updated.splice(idx, 1);
     }
-    
+
     try {
       await updateDoc(
         doc(
           db,
           `artifacts/${appId}/public/data/bingoGames/${game.id}/players`,
-          currentUserId // Use currentUserId instead of player.id for consistency
+          currentUserId
         ),
         { checkedSquares: updated }
       );
-  //     showSuccess("Square updated!");
-     closeModal();
+      closeModal();
     } catch (e) {
       console.error("Error updating square:", e);
       showError("Failed to update square.");
@@ -169,13 +155,13 @@ const PlayingGame = ({
       setNameInput("");
     }
   };
-  
+
   const removeName = (name) =>
     setModalNames(modalNames.filter((n) => n !== name));
 
   const handleSubmitCard = async () => {
     if (!player || player.isSubmitted || !game?.id) return;
-    
+
     try {
       await updateDoc(
         doc(
@@ -185,8 +171,10 @@ const PlayingGame = ({
         ),
         { isSubmitted: true, submissionTime: Date.now() }
       );
-      showSuccess("Card submitted!");
-      onFinishGame(false);
+      showSuccess(
+        "Card submitted! Game continues until time runs out or admin ends it."
+      );
+      // REMOVED: onFinishGame(false) - submitting shouldn't end the game
     } catch (e) {
       console.error("Error submitting card:", e);
       showError("Failed to submit card.");
@@ -261,10 +249,11 @@ const PlayingGame = ({
       {/* Connection status indicator */}
       {connectionError && (
         <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
-          <strong>Connection Issue:</strong> Reconnecting... (Attempt {retryCount}/3)
+          <strong>Connection Issue:</strong> Reconnecting... (Attempt{" "}
+          {retryCount}/3)
         </div>
       )}
-      
+
       <h2 className="text-3xl sm:text-4xl font-extrabold text-center text-blue-800">
         🎮 Bingo Game
       </h2>
@@ -276,7 +265,7 @@ const PlayingGame = ({
           <span className="ml-2 text-2xl">{formatTime(timeRemaining)}</span>
         </div>
 
-        {/* Fixed: Use correct admin check */}
+        {/* Admin End Game Button */}
         {game.adminId === currentUserId && game.status === "playing" && (
           <button
             onClick={handleAdminEndGame}
@@ -286,6 +275,7 @@ const PlayingGame = ({
           </button>
         )}
 
+        {/* Player Submit Button - doesn't end game */}
         {!player?.isSubmitted && game.status === "playing" && (
           <button
             onClick={handleSubmitCard}
@@ -299,6 +289,15 @@ const PlayingGame = ({
         )}
       </div>
 
+      {/* Game Status Info */}
+      <div className="bg-yellow-50 border border-yellow-300 p-3 rounded-lg">
+        <p className="text-sm text-yellow-800">
+          <strong>Game continues until:</strong> Timer runs out OR Admin ends
+          the game. Submitting your card early doesn't end the game for
+          everyone!
+        </p>
+      </div>
+
       {/* Grid */}
       {game.gridSize && (
         <div
@@ -310,13 +309,21 @@ const PlayingGame = ({
           {playerBoard.map((square) => (
             <button
               key={square.index}
-              disabled={player.isSubmitted || game.status !== "playing" || connectionError}
+              disabled={
+                player.isSubmitted ||
+                game.status !== "playing" ||
+                connectionError
+              }
               onClick={() => openModal(square)}
               className={`relative p-2 sm:p-3 text-xs sm:text-sm break-words rounded-md transition-all border ${
                 square.isChecked
                   ? "bg-green-300 border-green-500 text-white"
                   : "bg-white text-gray-800 border-gray-300 hover:bg-blue-100"
-              } ${player.isSubmitted || connectionError ? "opacity-50 cursor-not-allowed" : ""}`}
+              } ${
+                player.isSubmitted || connectionError
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
+              }`}
             >
               {square.question}
               {square.isChecked && (
@@ -334,10 +341,15 @@ const PlayingGame = ({
         <h3 className="text-xl font-bold mb-3">Other Players:</h3>
         <ul className="space-y-2">
           {gamePlayers
-            ?.filter((p) => p.id !== currentUserId) // Use currentUserId for consistency
+            ?.filter((p) => p.id !== currentUserId)
             .map((p) => (
               <li key={p.id} className="p-3 bg-gray-100 rounded-md">
-                <div className="font-bold">{p.name}</div>
+                <div className="font-bold flex items-center justify-between">
+                  <span>{p.name}</span>
+                  {p.isSubmitted && (
+                    <span className="text-green-600 text-sm">✅ Submitted</span>
+                  )}
+                </div>
                 <div className="italic text-sm">"{p.icebreaker}"</div>
                 <button
                   onClick={() => onAskMore(p)}
