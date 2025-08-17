@@ -161,13 +161,14 @@ const Scoreboard = ({
     .map((p) => ({ ...p, ...computeScores(p) }))
     .sort((a, b) => b.aggregate - a.aggregate);
 
-  const handleShareResults = () => {
-    const shareUrl = `${window.location.origin}/score/${game.id}`;
-    navigator.clipboard
-      .writeText(shareUrl)
-      .then(() => alert("Scoreboard link copied!"))
-      .catch(() => alert("Copy failed – please copy manually"));
-  };
+ const handleShareResults = () => {
+   const shareUrl = `${window.location.origin}/score/${game.id}`;
+   navigator.clipboard
+     .writeText(shareUrl)
+     .then(() => alert("Public scoreboard link copied!"))
+     .catch(() => alert("Copy failed – please copy manually"));
+ };
+
 
   return (
     <>

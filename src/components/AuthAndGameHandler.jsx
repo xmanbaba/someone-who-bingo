@@ -5,7 +5,7 @@ import React, {
   useCallback,
   useContext,
 } from "react";
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   getAuth,
   onAuthStateChanged,
@@ -31,6 +31,7 @@ import {
   connectFirestoreEmulator,
 } from "firebase/firestore";
 import { useNavigate, useLocation } from "react-router-dom";
+import ProfileIcon from "./ProfileIcon"
 
 const firebaseConfig = {
   apiKey: "AIzaSyBNkwfo1M0YKkOLoguixQhn42qwyCxFX4c",
@@ -51,7 +52,11 @@ const SESSION_KEYS = {
   LAST_ROUTE: "bingo_last_route",
 };
 
-const AuthAndGameHandler = ({ children, showMessageModal }) => {
+const AuthAndGameHandler = ({
+  children,
+  showMessageModal,
+  onSignOut,
+}) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [db, setDb] = useState(null);
@@ -190,7 +195,7 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
   useEffect(() => {
     const initializeFirebase = async () => {
       try {
-        const app = initializeApp(firebaseConfig);
+        const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
         const firestoreDb = getFirestore(app);
         const firebaseAuth = getAuth(app);
 
@@ -741,6 +746,14 @@ const AuthAndGameHandler = ({ children, showMessageModal }) => {
 
   return (
     <>
+      {/* Profile Icon in top right */}
+      <div className="absolute top-6 right-6">
+        <ProfileIcon
+          currentUserId={currentUserId}
+          onSignOut={onSignOut}
+          auth={auth}
+        />
+      </div>
       {children({
         currentUserId,
         gameId,

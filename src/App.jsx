@@ -19,6 +19,8 @@ import LoginPage from "./components/LoginPage";
 import WaitingRoom from "./components/WaitingRoom";
 import PlayingGame from "./components/PlayingGame";
 import Scoreboard from "./components/Scoreboard";
+import Dashboard from "./components/Dashboard";
+import PublicScoreboard from "./components/PublicScoreboard";
 
 const LoadingScreen = () => (
   <div className="flex items-center justify-center min-h-screen bg-blue-50">
@@ -120,6 +122,7 @@ export default function App() {
             signInWithEmailAndPassword,
             signInWithGoogle,
             signOut,
+            getSession,
           } = props;
 
           const navigate = useNavigate();
@@ -133,7 +136,7 @@ export default function App() {
 
               {/* Deep link route for sharing game joins */}
               <Route
-                path="/:gameId"
+                path="/game/:gameId"
                 element={
                   <GameDeepLink>
                     {({ urlGameId }) => {
@@ -171,12 +174,34 @@ export default function App() {
                 }
               />
 
+              {/* Dashboard route */}
+              <Route
+                path="/dashboard"
+                element={
+                  currentUserId ? (
+                    <Dashboard
+                      currentUserId={currentUserId}
+                      db={db}
+                      appId={appId}
+                      auth={auth}
+                      onSignOut={signOut}
+                    />
+                  ) : (
+                    <Navigate to="/auth" replace />
+                  )
+                }
+              />
+
               {/* Role selection */}
               <Route
                 path="/role"
                 element={
                   currentUserId ? (
-                    <LandingPage />
+                    <LandingPage
+                      currentUserId={currentUserId}
+                      auth={auth}
+                      onSignOut={signOut}
+                    />
                   ) : (
                     <Navigate to="/auth" replace />
                   )
@@ -197,6 +222,7 @@ export default function App() {
                       showError={(msg) => alert(`error: ${msg}`)}
                       onBackToRoleSelection={() => window.history.back()}
                       onSignOut={() => signOut()}
+                      auth={auth}
                     />
                   ) : (
                     <Navigate to="/role" replace />
@@ -215,6 +241,9 @@ export default function App() {
                       showError={(msg) => alert(`error: ${msg}`)}
                       onBackToRoleSelection={() => window.history.back()}
                       onSignOut={() => signOut()}
+                      getSession={getSession}
+                      currentUserId={currentUserId}
+                      auth={auth}
                     />
                   ) : (
                     <Navigate to="/role" replace />
@@ -270,6 +299,8 @@ export default function App() {
                             showSuccess={(msg) => alert(`success: ${msg}`)}
                             connectionError={connectionError}
                             retryCount={retryCount}
+                            auth={auth}
+                            onSignOut={signOut}
                           />
                         )
                       ) : (
@@ -302,6 +333,7 @@ export default function App() {
                       onSignOut={() => signOut()}
                       connectionError={connectionError}
                       retryCount={retryCount}
+                      auth={auth}
                     />
                   ) : (
                     <Navigate to="/role" replace />
@@ -336,13 +368,14 @@ export default function App() {
                       onSignOut={() => signOut()}
                       connectionError={connectionError}
                       retryCount={retryCount}
+                      auth={auth}
                     />
                   ) : (
                     <Navigate to="/role" replace />
                   )
                 }
               />
-
+              <Route path="/score/:gameId" element={<PublicScoreboard />} />
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

@@ -1,6 +1,18 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, addDoc, doc, setDoc } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  doc,
+  setDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+import ProfileIcon from "./ProfileIcon";
+import * as pdfjsLib from "pdfjs-dist";
+import mammoth from "mammoth";
+
+// PDF worker setup for pdfjs-dist
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 const AdminSetup = ({
   onGameCreated,
@@ -9,9 +21,12 @@ const AdminSetup = ({
   appId,
   showError,
   geminiApiKey,
+  onSignOut,
+  auth,
 }) => {
- const navigate = useNavigate(); 
-  const [industry, setIndustry] = useState("Human Resources");
+  const navigate = useNavigate();
+  const [selectedIndustry, setSelectedIndustry] = useState("Human Resources");
+  const [customIndustry, setCustomIndustry] = useState("");
   const [gridSize, setGridSize] = useState(5);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [customTimerDuration, setCustomTimerDuration] = useState(30);
@@ -20,6 +35,7 @@ const AdminSetup = ({
   const [currentQuestions, setCurrentQuestions] = useState([]);
 
   const industries = [
+    "General",
     "Human Resources",
     "Technology",
     "Healthcare",
@@ -53,9 +69,14 @@ const AdminSetup = ({
 
   const generateQuestionsAI = async () => {
     setLoadingQuestions(true);
+
+    const finalIndustry =
+      selectedIndustry === "Other" ? customIndustry : selectedIndustry;
+
     const prompt = `Generate ${
       gridSize * gridSize
-    } unique "Find someone who..." bingo statements relevant to the ${industry} industry. Output a JSON array of strings.`;
+    } unique "Find someone who..." bingo statements relevant to the ${finalIndustry} industry. Output a JSON array of strings.`;
+
     try {
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
@@ -89,22 +110,60 @@ const AdminSetup = ({
     setCurrentQuestions(list);
   };
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadedFile(file);
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      let lines = ev.target.result.split("\n");
-      if (file.type === "text/csv" || file.name.endsWith(".csv"))
-        lines = lines.map((l) => l.split(",")[0]?.trim());
-      const list = lines
-        .map((l) => l.trim())
-        .filter(Boolean)
-        .map((l) => l.replace(/^\d+\.\s*/, ""));
-      setCurrentQuestions(list);
-    };
-    reader.readAsText(file);
+
+    try {
+      if (file.type === "text/plain" || file.name.endsWith(".txt")) {
+        // ✅ TXT
+        const text = await file.text();
+        processText(text);
+      } else if (file.type === "text/csv" || file.name.endsWith(".csv")) {
+        // ✅ CSV
+        const text = await file.text();
+        const lines = text.split("\n").map((l) => l.split(",")[0]?.trim());
+        processText(lines.join("\n"));
+      } else if (
+        file.type === "application/pdf" ||
+        file.name.endsWith(".pdf")
+      ) {
+        // ✅ PDF
+        const pdf = await pdfjsLib.getDocument(await file.arrayBuffer())
+          .promise;
+        let text = "";
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          text += content.items.map((s) => s.str).join(" ") + "\n";
+        }
+        processText(text);
+      } else if (
+        file.type ===
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+        file.name.endsWith(".docx")
+      ) {
+        // ✅ DOCX
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        processText(result.value);
+      } else {
+        showError("Unsupported file type. Use TXT, CSV, PDF, or DOCX.");
+      }
+    } catch (err) {
+      showError("Failed to read file: " + err.message);
+    }
+  };
+
+  const processText = (text) => {
+    const list = text
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l) => l.replace(/^\d+\.\s*/, "")); // remove numbering like "1. "
+    if (!list.length) return showError("No valid questions found");
+    setCurrentQuestions(list);
   };
 
   const handleShuffleQuestions = () => {
@@ -120,7 +179,12 @@ const AdminSetup = ({
       return showError(`Need ${gridSize * gridSize} questions`);
     if (customTimerDuration <= 0) return showError("Timer must be > 0");
 
-    let newGameId; // Declare the variable outside the try block
+    const finalIndustry =
+      selectedIndustry === "Other" ? customIndustry : selectedIndustry;
+
+    if (!finalIndustry) return showError("Please select or enter an industry");
+
+    let newGameId;
 
     try {
       const gamesCollectionRef = collection(
@@ -129,16 +193,17 @@ const AdminSetup = ({
       );
       const newGame = await addDoc(gamesCollectionRef, {
         adminId: userId,
-        industry,
+        industry: finalIndustry,
         gridSize,
         timerDuration: customTimerDuration,
         status: "waiting",
         questions: currentQuestions,
         startTime: null,
         scoringEndTime: null,
+        createdAt: serverTimestamp(),
       });
 
-      newGameId = newGame.id; // Assign the value inside try block
+      newGameId = newGame.id;
 
       await setDoc(
         doc(
@@ -155,28 +220,30 @@ const AdminSetup = ({
           icebreaker: "The game master who sets the stage for fun! ✨",
         }
       );
-      
+
       onGameCreated(newGameId, {
         id: newGameId,
         adminId: userId,
-        industry,
+        industry: finalIndustry,
         gridSize,
         timerDuration: customTimerDuration,
         status: "waiting",
         questions: currentQuestions,
       });
 
-      // Navigate after successful creation
       navigate(`/waiting/${newGameId}`);
-      
     } catch (e) {
       showError(`Create failed: ${e.message}`);
-      return; // Exit early on error, don't navigate
+      return;
     }
   };
 
   return (
     <div className="space-y-6 sm:space-y-8 p-4 sm:p-6 bg-white rounded-2xl shadow-2xl max-w-sm sm:max-w-md md:max-w-lg mx-auto border-4 border-purple-200">
+      {/* Profile Icon in top right */}
+      <div className="absolute top-6 right-6">
+        <ProfileIcon currentUserId={userId} onSignOut={onSignOut} auth={auth} />
+      </div>
       <h2 className="text-2xl sm:text-3xl font-extrabold text-center text-purple-800 mb-4 flex items-center justify-center">
         <svg
           className="w-7 h-7 sm:w-10 sm:h-10 mr-2"
@@ -193,20 +260,34 @@ const AdminSetup = ({
         <h3 className="text-lg sm:text-xl font-bold text-blue-700">
           Game Settings
         </h3>
+        {/* Industry */}
         <div>
           <label className="block text-sm font-semibold mb-1">Industry</label>
           <select
-            value={industry}
-            onChange={(e) => setIndustry(e.target.value)}
+            value={selectedIndustry}
+            onChange={(e) => setSelectedIndustry(e.target.value)}
             className="w-full border border-blue-300 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-300"
           >
+            <option value="">Select an industry</option>
             {industries.map((i) => (
               <option key={i} value={i}>
                 {i}
               </option>
             ))}
+            <option value="Other">Other</option>
           </select>
+
+          {selectedIndustry === "Other" && (
+            <input
+              type="text"
+              placeholder="Enter your industry"
+              value={customIndustry}
+              onChange={(e) => setCustomIndustry(e.target.value)}
+              className="mt-2 w-full border border-blue-300 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-300"
+            />
+          )}
         </div>
+
         <div>
           <label className="block text-sm font-semibold mb-1">Grid Size</label>
           <select
@@ -281,7 +362,7 @@ const AdminSetup = ({
 
         <input
           type="file"
-          accept=".txt,.csv"
+          accept=".txt,.csv,.pdf,.docx"
           onChange={handleFileUpload}
           className="block w-full text-xs file:mr-2 file:py-2 file:px-3 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200"
         />
