@@ -31,7 +31,7 @@ import {
   connectFirestoreEmulator,
 } from "firebase/firestore";
 import { useNavigate, useLocation } from "react-router-dom";
-import ProfileIcon from "./ProfileIcon"
+import ProfileIcon from "./ProfileIcon";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBNkwfo1M0YKkOLoguixQhn42qwyCxFX4c",
@@ -52,11 +52,7 @@ const SESSION_KEYS = {
   LAST_ROUTE: "bingo_last_route",
 };
 
-const AuthAndGameHandler = ({
-  children,
-  showMessageModal,
-  onSignOut,
-}) => {
+const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [db, setDb] = useState(null);
@@ -734,6 +730,12 @@ const AuthAndGameHandler = ({
     showMessageModal("You have exited the game.", "info");
   };
 
+  // Handle sign out
+  const handleSignOut = useCallback(() => {
+    clearSession();
+    signOut(auth);
+  }, [auth, clearSession]);
+
   if (typeof children !== "function") {
     console.error("AuthAndGameHandler: Expected 'children' to be a function.");
     showMessageModal("Application error: Please refresh the page.", "error");
@@ -746,14 +748,16 @@ const AuthAndGameHandler = ({
 
   return (
     <>
-      {/* Profile Icon in top right */}
-      <div className="absolute top-6 right-6">
-        <ProfileIcon
-          currentUserId={currentUserId}
-          onSignOut={onSignOut}
-          auth={auth}
-        />
-      </div>
+      {/* Only show ProfileIcon when user is authenticated AND not on homepage */}
+      {currentUserId && location.pathname !== "/" && (
+        <div className="absolute top-6 right-6 z-50">
+          <ProfileIcon
+            currentUserId={currentUserId}
+            onSignOut={handleSignOut}
+            auth={auth}
+          />
+        </div>
+      )}
       {children({
         currentUserId,
         gameId,
@@ -796,10 +800,7 @@ const AuthAndGameHandler = ({
             }
           }
         },
-        signOut: () => {
-          clearSession();
-          signOut(auth);
-        },
+        signOut: handleSignOut,
         // Session management utilities
         saveSession,
         getSession,

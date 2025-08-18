@@ -113,7 +113,7 @@ const ProfileIcon = ({ currentUserId, onSignOut, auth }) => {
             </button>
 
             <button
-              onClick={handleSignOut}
+              onClick={onSignOut}
               className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-150"
             >
               <svg
