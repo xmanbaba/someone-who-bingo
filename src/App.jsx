@@ -341,7 +341,7 @@ export default function App() {
                 }
               />
 
-              {/* Scoreboard */}
+              {/* Scoreboard - authenticated users */}
               <Route
                 path="/score/:gameId"
                 element={
@@ -375,7 +375,12 @@ export default function App() {
                   )
                 }
               />
-              <Route path="/score/:gameId" element={<PublicScoreboard />} />
+
+              {/* Public Scoreboard - no authentication required */}
+              <Route
+                path="/public-score/:appId/:gameId"
+                element={<PublicScoreboard />}
+              />
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

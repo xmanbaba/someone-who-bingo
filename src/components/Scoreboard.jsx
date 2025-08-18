@@ -162,7 +162,7 @@ const Scoreboard = ({
     .sort((a, b) => b.aggregate - a.aggregate);
 
  const handleShareResults = () => {
-   const shareUrl = `${window.location.origin}/score/${game.id}`;
+   const shareUrl = `${window.location.origin}/public-score/${appId}/${game.id}`;
    navigator.clipboard
      .writeText(shareUrl)
      .then(() => alert("Public scoreboard link copied!"))
