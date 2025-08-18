@@ -9,7 +9,7 @@ import {
   doc,
   getDoc,
 } from "firebase/firestore";
-import ProfileIcon from "./ProfileIcon";
+//import ProfileIcon from "./ProfileIcon";
 
 const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
   const navigate = useNavigate();
@@ -236,11 +236,11 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
             </button>
             <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           </div>
-          <ProfileIcon
+          {/* <ProfileIcon
             currentUserId={currentUserId}
             onSignOut={onSignOut}
             auth={auth}
-          />
+          /> */}
         </div>
       </div>
 
