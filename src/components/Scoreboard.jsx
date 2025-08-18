@@ -161,14 +161,43 @@ const Scoreboard = ({
     .map((p) => ({ ...p, ...computeScores(p) }))
     .sort((a, b) => b.aggregate - a.aggregate);
 
- const handleShareResults = () => {
-   const shareUrl = `${window.location.origin}/public-score/${appId}/${game.id}`;
-   navigator.clipboard
-     .writeText(shareUrl)
-     .then(() => alert("Public scoreboard link copied!"))
-     .catch(() => alert("Copy failed – please copy manually"));
- };
+  const handleShareResults = async () => {
+    try {
+      // Mark the game as having a public scoreboard
+      if (isAdmin) {
+        await updateDoc(
+          doc(db, `artifacts/${appId}/public/data/bingoGames`, game.id),
+          { publicScoreboard: true }
+        );
+      }
 
+      const shareUrl = `${window.location.origin}/public-score/${appId}/${game.id}`;
+      navigator.clipboard
+        .writeText(shareUrl)
+        .then(() =>
+          alert(
+            "Public scoreboard link copied! Anyone can view this link without needing an account."
+          )
+        )
+        .catch(() => alert("Copy failed – please copy manually"));
+    } catch (error) {
+      console.error("Error updating public scoreboard flag:", error);
+      // Still share the link even if the update fails
+      const shareUrl = `${window.location.origin}/public-score/${appId}/${game.id}`;
+      navigator.clipboard
+        .writeText(shareUrl)
+        .then(() => alert("Public scoreboard link copied!"))
+        .catch(() => alert("Copy failed – please copy manually"));
+    }
+  };
+
+  const handleShareJoinLink = () => {
+    const joinUrl = `${window.location.origin}/join/${game.id}`;
+    navigator.clipboard
+      .writeText(joinUrl)
+      .then(() => alert("Game join link copied!"))
+      .catch(() => alert("Copy failed – please copy manually"));
+  };
 
   return (
     <>
@@ -186,12 +215,22 @@ const Scoreboard = ({
               {game.gridSize}×{game.gridSize}
             </strong>
           </p>
-          <button
-            onClick={handleShareResults}
-            className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
-          >
-            🔗 Share Scoreboard
-          </button>
+          <div className="flex flex-col sm:flex-row gap-2 mt-3 justify-center">
+            <button
+              onClick={handleShareResults}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
+            >
+              🔗 Share Scoreboard
+            </button>
+            {isAdmin && (
+              <button
+                onClick={handleShareJoinLink}
+                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm"
+              >
+                📋 Share Join Link
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Player Table */}
