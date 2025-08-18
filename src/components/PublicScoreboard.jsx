@@ -1,97 +1,182 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { db } from "../firebase";
-import { doc, getDoc, collection, getDocs } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  collection,
+  getDocs,
+  onSnapshot,
+} from "firebase/firestore";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
+
 
 export default function PublicScoreboard() {
-  const { gameId } = useParams();
+  const { appId, gameId } = useParams();
   const [game, setGame] = useState(null);
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [debugInfo, setDebugInfo] = useState([]);
 
-  // Try multiple possible paths
-  const possiblePaths = [
-    // Original path you were using
-    `games/${gameId}`,
-    // Path with artifacts (you'll need to replace 'your-app-id' with your actual appId)
-    `artifacts/1:136531916308:web:497b7e7d4b234113629901/public/data/bingoGames/${gameId}`,
-    // Alternative paths
-    `bingoGames/${gameId}`,
-    `gameData/${gameId}`,
-    // Add more if you suspect other structures
-  ];
-
   useEffect(() => {
-    const tryMultiplePaths = async () => {
+    const fetchGameData = async () => {
       const debugResults = [];
-      let foundGame = null;
-      let foundPlayers = [];
 
-      for (const path of possiblePaths) {
-        try {
-          console.log(`Trying path: ${path}`);
-          debugResults.push(`Trying path: ${path}`);
+      if (!appId || !gameId) {
+        setError("Missing appId or gameId in URL");
+        setLoading(false);
+        return;
+      }
 
-          const gameDoc = await getDoc(doc(db, ...path.split("/")));
+      try {
+        const gamePath = `artifacts/${appId}/public/data/bingoGames/${gameId}`;
+        debugResults.push(`Fetching from path: ${gamePath}`);
+        console.log(`Fetching game from: ${gamePath}`);
 
-          if (gameDoc.exists()) {
-            console.log(`✅ Found game at: ${path}`, gameDoc.data());
-            debugResults.push(`✅ Found game at: ${path}`);
-            foundGame = { id: gameDoc.id, ...gameDoc.data() };
+        const gameDocRef = doc(
+          db,
+          "artifacts",
+          appId,
+          "public",
+          "data",
+          "bingoGames",
+          gameId
+        );
+        const gameDoc = await getDoc(gameDocRef);
 
-            // Try to get players
-            try {
-              const playersSnap = await getDocs(
-                collection(db, ...path.split("/"), "players")
-              );
-              foundPlayers = playersSnap.docs.map((d) => ({
+        if (gameDoc.exists()) {
+          console.log(`✅ Found game:`, gameDoc.data());
+          debugResults.push(`✅ Found game successfully`);
+
+          const gameData = { id: gameDoc.id, ...gameDoc.data() };
+          setGame(gameData);
+
+          const playersRef = collection(
+            db,
+            "artifacts",
+            appId,
+            "public",
+            "data",
+            "bingoGames",
+            gameId,
+            "players"
+          );
+
+          const unsubscribe = onSnapshot(
+            playersRef,
+            (snapshot) => {
+              const foundPlayers = snapshot.docs.map((d) => ({
                 id: d.id,
                 ...d.data(),
               }));
+
               debugResults.push(`✅ Found ${foundPlayers.length} players`);
               console.log(
                 `Found ${foundPlayers.length} players:`,
                 foundPlayers
               );
-            } catch (playerErr) {
-              debugResults.push(
-                `❌ Error getting players: ${playerErr.message}`
-              );
-              console.log("Error getting players:", playerErr);
-            }
 
-            break; // Stop trying other paths
-          } else {
-            console.log(`❌ No game at: ${path}`);
-            debugResults.push(`❌ No game at: ${path}`);
-          }
-        } catch (err) {
-          console.log(`❌ Error trying ${path}:`, err);
-          debugResults.push(`❌ Error trying ${path}: ${err.message}`);
+              foundPlayers.sort((a, b) => {
+                const aScore = computePlayerScore(a, gameData);
+                const bScore = computePlayerScore(b, gameData);
+                return bScore.aggregate - aScore.aggregate;
+              });
+
+              setPlayers(foundPlayers);
+              setLoading(false);
+            },
+            (error) => {
+              console.error("Error listening to players:", error);
+              debugResults.push(
+                `❌ Error listening to players: ${error.message}`
+              );
+              getDocs(playersRef)
+                .then((snapshot) => {
+                  const foundPlayers = snapshot.docs.map((d) => ({
+                    id: d.id,
+                    ...d.data(),
+                  }));
+                  foundPlayers.sort((a, b) => {
+                    const aScore = computePlayerScore(a, gameData);
+                    const bScore = computePlayerScore(b, gameData);
+                    return bScore.aggregate - aScore.aggregate;
+                  });
+                  setPlayers(foundPlayers);
+                })
+                .catch((playerErr) => {
+                  debugResults.push(
+                    `❌ Fallback error getting players: ${playerErr.message}`
+                  );
+                  console.error("Fallback error getting players:", playerErr);
+                  setError(
+                    `Found game but couldn't load players: ${playerErr.message}`
+                  );
+                });
+              setLoading(false);
+            }
+          );
+
+          return unsubscribe;
+        } else {
+          console.log(`❌ No game found at: ${gamePath}`);
+          debugResults.push(`❌ No game found`);
+          setError(
+            `Game not found. This scoreboard may not be publicly available yet.`
+          );
+          setLoading(false);
         }
+      } catch (err) {
+        console.error(`❌ Error fetching game:`, err);
+        debugResults.push(`❌ Error fetching game: ${err.message}`);
+        setError(`Error loading scoreboard: ${err.message}`);
+        setLoading(false);
       }
 
       setDebugInfo(debugResults);
-
-      if (foundGame) {
-        setGame(foundGame);
-        foundPlayers.sort((a, b) => (b.score || 0) - (a.score || 0));
-        setPlayers(foundPlayers);
-      } else {
-        setError(
-          "Game not found in any of the expected paths. Check debug info below."
-        );
-      }
-
-      setLoading(false);
     };
 
-    tryMultiplePaths();
-  }, [gameId]);
+    const cleanup = fetchGameData();
+
+    return () => {
+      if (cleanup && typeof cleanup.then === "function") {
+        cleanup.then((unsubscribe) => {
+          if (typeof unsubscribe === "function") {
+            unsubscribe();
+          }
+        });
+      }
+    };
+  }, [appId, gameId]);
+
+  const computePlayerScore = (player, gameData) => {
+    const filled = player?.checkedSquares?.length || 0;
+    const correct = (player?.checkedSquares || []).filter(
+      (s) => s.correct === true
+    ).length;
+
+    const gridSize = gameData?.gridSize || 5;
+    const totalSquares = gridSize * gridSize;
+
+    const completionScore = (filled / totalSquares) * 40;
+    const accuracyScore = filled === 0 ? 0 : (correct / filled) * 60;
+
+    const timeScore =
+      player?.endTime && player?.startTime
+        ? (player.endTime - player.startTime) / 1000
+        : Infinity;
+
+    return {
+      completionScore,
+      accuracyScore,
+      aggregate: completionScore + accuracyScore,
+      timeScore,
+      filled,
+      correct,
+      totalSquares,
+    };
+  };
 
   const handleDownloadPDF = () => {
     if (!players.length) return;
@@ -100,19 +185,33 @@ export default function PublicScoreboard() {
     doc.setFontSize(18);
     doc.text(`${game?.name || "Game"} – Scoreboard`, 14, 20);
 
-    const tableColumn = ["Rank", "Player", "Score"];
-    const tableRows = players.map((p, i) => [
-      i + 1,
-      p.name || "Unnamed",
-      p.score ?? 0,
-    ]);
+    const tableColumn = [
+      "Rank",
+      "Player",
+      "Time (s)",
+      "Completion",
+      "Accuracy",
+      "Total",
+    ];
+    const tableRows = players.map((player, i) => {
+      const scores = computePlayerScore(player, game);
+      return [
+        i + 1,
+        player.name || "Unnamed",
+        scores.timeScore === Infinity ? "N/A" : scores.timeScore.toFixed(1),
+        scores.completionScore.toFixed(1),
+        scores.accuracyScore.toFixed(1),
+        scores.aggregate.toFixed(1),
+      ];
+    });
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: 30,
       head: [tableColumn],
       body: tableRows,
       theme: "striped",
     });
+
 
     doc.setFontSize(10);
     doc.text(
@@ -124,81 +223,203 @@ export default function PublicScoreboard() {
     doc.save(`${game?.name || "scoreboard"}_${gameId}.pdf`);
   };
 
-  if (loading) return <p className="p-4 text-gray-500">Loading scoreboard…</p>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading scoreboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      {/* Debug Information */}
-      <div className="mb-6 p-4 bg-gray-100 rounded-lg">
-        <h3 className="font-bold mb-2">Debug Information:</h3>
-        <p className="text-sm mb-2">
-          Game ID from URL: <code>{gameId}</code>
-        </p>
-        <div className="text-xs space-y-1">
-          {debugInfo.map((info, index) => (
-            <div key={index} className="font-mono">
-              {info}
-            </div>
-          ))}
+      {/* {process.env.NODE_ENV === "development" && (
+        <div className="mb-6 p-4 bg-gray-100 rounded-lg">
+          <h3 className="font-bold mb-2">Debug Information:</h3>
+          <p className="text-sm mb-2">
+            App ID: <code>{appId}</code>
+          </p>
+          <p className="text-sm mb-2">
+            Game ID: <code>{gameId}</code>
+          </p>
+          <div className="text-xs space-y-1">
+            {debugInfo.map((info, index) => (
+              <div key={index} className="font-mono">
+                {info}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )} */}
 
       {error && (
         <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
-          {error}
+          <h3 className="font-bold mb-2">Error Loading Scoreboard</h3>
+          <p>{error}</p>
+          {process.env.NODE_ENV === "development" && (
+            <div className="mt-2 text-sm">
+              <p>
+                Expected path:{" "}
+                <code>
+                  artifacts/{appId}/public/data/bingoGames/{gameId}
+                </code>
+              </p>
+            </div>
+          )}
         </div>
       )}
 
       {game ? (
         <>
-          <h1 className="text-2xl font-bold text-center mb-4">
-            {game.name} – Scoreboard
-          </h1>
+          <div className="bg-white shadow rounded-lg overflow-hidden">
+            <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-6">
+              <h1 className="text-3xl font-bold text-center mb-2">
+                🏆 {game.name || "Game"} Results
+              </h1>
+              <div className="text-center text-purple-100 text-sm">
+                <p>
+                  {game.industry && (
+                    <>
+                      Industry:{" "}
+                      <span className="capitalize">{game.industry}</span>
+                      {" | "}
+                    </>
+                  )}
+                  {game.gridSize && (
+                    <>
+                      Grid Size: {game.gridSize}×{game.gridSize}
+                      {" | "}
+                    </>
+                  )}
+                  Game Completed:{" "}
+                  {game.endedAt
+                    ? new Date(game.endedAt).toLocaleDateString()
+                    : "Recently"}
+                </p>
+              </div>
+            </div>
 
-          <div className="bg-white shadow rounded-lg p-4">
-            {players.length === 0 ? (
-              <p className="text-center text-gray-500">No players yet.</p>
-            ) : (
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b text-left">
-                    <th className="p-2">Rank</th>
-                    <th className="p-2">Player</th>
-                    <th className="p-2 text-right">Score</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {players.map((p, index) => (
-                    <tr key={p.id} className="border-b last:border-0">
-                      <td className="p-2">{index + 1}</td>
-                      <td className="p-2">{p.name || "Unnamed"}</td>
-                      <td className="p-2 text-right">{p.score ?? 0}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            <div className="p-6">
+              {players.length === 0 ? (
+                <p className="text-center text-gray-500 py-8">
+                  No players have completed the game yet.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b-2 border-gray-200 text-left">
+                        <th className="py-3 px-2 font-semibold text-gray-700">
+                          #
+                        </th>
+                        <th className="py-3 px-2 font-semibold text-gray-700">
+                          Player
+                        </th>
+                        <th className="py-3 px-2 font-semibold text-gray-700 text-right">
+                          Time
+                        </th>
+                        <th className="py-3 px-2 font-semibold text-gray-700 text-right">
+                          Completion
+                        </th>
+                        <th className="py-3 px-2 font-semibold text-gray-700 text-right">
+                          Accuracy
+                        </th>
+                        <th className="py-3 px-2 font-semibold text-gray-700 text-right">
+                          Total Score
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {players.map((player, index) => {
+                        const scores = computePlayerScore(player, game);
+                        return (
+                          <tr
+                            key={player.id}
+                            className="border-b border-gray-100 hover:bg-gray-50"
+                          >
+                            <td className="py-3 px-2">
+                              <span className="flex items-center">
+                                {index === 0 && (
+                                  <span className="mr-1">🥇</span>
+                                )}
+                                {index === 1 && (
+                                  <span className="mr-1">🥈</span>
+                                )}
+                                {index === 2 && (
+                                  <span className="mr-1">🥉</span>
+                                )}
+                                {index + 1}
+                              </span>
+                            </td>
+                            <td className="py-3 px-2 font-medium">
+                              {player.name || "Unnamed Player"}
+                            </td>
+                            <td className="py-3 px-2 text-right text-gray-600">
+                              {scores.timeScore === Infinity
+                                ? "N/A"
+                                : `${scores.timeScore.toFixed(1)}s`}
+                            </td>
+                            <td className="py-3 px-2 text-right">
+                              <div className="text-gray-900">
+                                {scores.completionScore.toFixed(1)}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {scores.filled}/{scores.totalSquares}
+                              </div>
+                            </td>
+                            <td className="py-3 px-2 text-right">
+                              <div className="text-gray-900">
+                                {scores.accuracyScore.toFixed(1)}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {scores.filled > 0
+                                  ? `${scores.correct}/${scores.filled}`
+                                  : "0/0"}
+                              </div>
+                            </td>
+                            <td className="py-3 px-2 text-right">
+                              <span className="font-bold text-lg text-purple-700">
+                                {scores.aggregate.toFixed(1)}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
 
           {players.length > 0 && (
-            <div className="text-center mt-4">
+            <div className="text-center mt-6">
               <button
                 onClick={handleDownloadPDF}
-                className="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow"
+                className="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-6 py-3 rounded-lg shadow transition-colors duration-200"
               >
-                Download Scoreboard (PDF)
+                📄 Download Scoreboard (PDF)
               </button>
             </div>
           )}
 
-          <p className="mt-4 text-center text-xs text-gray-400">
-            Shared scoreboard – view only
+          <p className="mt-6 text-center text-xs text-gray-400">
+            Public Results • This scoreboard is view-only and updates
+            automatically
           </p>
         </>
       ) : (
-        <div className="text-center">
-          <p className="text-gray-500">No game found</p>
-        </div>
+        !error && (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">No game found</p>
+            <p className="text-gray-400 text-sm mt-2">
+              Please check the URL and try again
+            </p>
+          </div>
+        )
       )}
     </div>
   );
