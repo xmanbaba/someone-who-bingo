@@ -173,8 +173,25 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
     if (currentUserId && !sessionRestored) {
       const urlParams = new URLSearchParams(location.search);
       const joinGameId = urlParams.get("join");
+
+      // Only extract game ID from specific game routes
+      let pathGameId = null;
       const pathSegments = location.pathname.split("/").filter(Boolean);
-      const firstPathSegment = pathSegments[0];
+
+      // Only consider path-based game IDs from game-specific routes
+      if (pathSegments.length >= 2) {
+        const routeType = pathSegments[0];
+        const possibleGameId = pathSegments[1];
+
+        if (
+          (routeType === "waiting" ||
+            routeType === "play" ||
+            routeType === "score") &&
+          isValidGameId(possibleGameId)
+        ) {
+          pathGameId = possibleGameId;
+        }
+      }
 
       // Restore session data
       const savedGameId = getSession(SESSION_KEYS.GAME_ID);
@@ -182,13 +199,11 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
       const savedIcebreaker = getSession(SESSION_KEYS.PLAYER_ICEBREAKER);
       const savedRoute = getSession(SESSION_KEYS.LAST_ROUTE);
 
-      // Only treat path segments as game IDs if they're valid game IDs
-      const pathGameId = isValidGameId(firstPathSegment)
-        ? firstPathSegment
-        : null;
-
-      // Prioritize URL-based join, then path-based, then session restore
-      const targetGameId = joinGameId || pathGameId || savedGameId;
+      // Prioritize URL-based join, then path-based game ID, then session restore
+      const targetGameId =
+        joinGameId ||
+        pathGameId ||
+        (savedPlayerName && savedIcebreaker ? savedGameId : null);
 
       if (targetGameId && isValidGameId(targetGameId)) {
         if (savedPlayerName && savedIcebreaker) {
@@ -198,8 +213,15 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
           // Need to collect player info first
           navigate(`/player/join?autoJoin=${targetGameId}`);
         }
-      } else if (savedRoute && savedRoute !== "/auth" && savedRoute !== "/") {
-        // Restore last route if no specific game to join
+      } else if (
+        savedRoute &&
+        savedRoute !== "/auth" &&
+        savedRoute !== "/" &&
+        !location.pathname.includes("/dashboard") &&
+        !location.pathname.includes("/score/") &&
+        !location.pathname.includes("/role")
+      ) {
+        // Restore last route if no specific game to join and not on protected routes
         navigate(savedRoute, { replace: true });
       }
 

@@ -90,8 +90,8 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
           ...playerCheckPromises,
         ]);
 
-        // Combine results
-        userGames.push(...adminResults);
+        // Combine results and filter out nulls
+        userGames.push(...adminResults.filter(Boolean));
         userGames.push(...playerResults.filter(Boolean));
 
         // Sort by most recent first
@@ -166,6 +166,29 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
           playersWithScores.find((p) => p.id === currentUserId)?.totalScore ||
           0;
 
+        // Better timestamp handling
+        let playedAt = Date.now(); // fallback to current time
+
+        if (gameData.startTime) {
+          if (typeof gameData.startTime.toMillis === "function") {
+            playedAt = gameData.startTime.toMillis();
+          } else if (typeof gameData.startTime === "number") {
+            playedAt = gameData.startTime;
+          }
+        } else if (gameData.createdAt) {
+          if (typeof gameData.createdAt.toMillis === "function") {
+            playedAt = gameData.createdAt.toMillis();
+          } else if (typeof gameData.createdAt === "number") {
+            playedAt = gameData.createdAt;
+          }
+        } else if (gameData.scoringEndTime) {
+          if (typeof gameData.scoringEndTime.toMillis === "function") {
+            playedAt = gameData.scoringEndTime.toMillis();
+          } else if (typeof gameData.scoringEndTime === "number") {
+            playedAt = gameData.scoringEndTime;
+          }
+        }
+
         return {
           id: gameDoc.id,
           ...gameData,
@@ -174,11 +197,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
           rank: userRank > 0 ? userRank : null,
           totalPlayers: allPlayers.length,
           userScore: userScore,
-          playedAt:
-            gameData.startTime?.toMillis?.() ||
-            gameData.createdAt?.toMillis?.() ||
-            gameData.scoringEndTime?.toMillis?.() ||
-            Date.now(),
+          playedAt: playedAt,
           isWin: userRank === 1 && allPlayers.length > 1,
         };
       } catch (error) {
