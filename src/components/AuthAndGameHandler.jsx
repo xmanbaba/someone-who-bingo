@@ -52,6 +52,16 @@ const SESSION_KEYS = {
   LAST_ROUTE: "bingo_last_route",
 };
 
+// Routes that should NOT trigger auto-join logic
+const NON_GAME_ROUTES = [
+  "auth",
+  "role",
+  "admin",
+  "player",
+  "dashboard",
+  "public-score",
+];
+
 const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -149,12 +159,22 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
     }
   }, [gameData?.status, gameId, navigate, location.pathname, saveSession]);
 
+  // Helper function to determine if a path segment is a valid game ID
+  const isValidGameId = (segment) => {
+    if (!segment || NON_GAME_ROUTES.includes(segment)) {
+      return false;
+    }
+    // Additional validation - game IDs are typically alphanumeric
+    return /^[a-zA-Z0-9_-]+$/.test(segment) && segment.length >= 3;
+  };
+
   // Check for URL-based game join on auth state change
   useEffect(() => {
     if (currentUserId && !sessionRestored) {
       const urlParams = new URLSearchParams(location.search);
       const joinGameId = urlParams.get("join");
-      const pathGameId = location.pathname.split("/")[1];
+      const pathSegments = location.pathname.split("/").filter(Boolean);
+      const firstPathSegment = pathSegments[0];
 
       // Restore session data
       const savedGameId = getSession(SESSION_KEYS.GAME_ID);
@@ -162,16 +182,15 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
       const savedIcebreaker = getSession(SESSION_KEYS.PLAYER_ICEBREAKER);
       const savedRoute = getSession(SESSION_KEYS.LAST_ROUTE);
 
-      // Prioritize URL-based join, then session restore
+      // Only treat path segments as game IDs if they're valid game IDs
+      const pathGameId = isValidGameId(firstPathSegment)
+        ? firstPathSegment
+        : null;
+
+      // Prioritize URL-based join, then path-based, then session restore
       const targetGameId = joinGameId || pathGameId || savedGameId;
 
-      if (
-        targetGameId &&
-        targetGameId !== "auth" &&
-        targetGameId !== "role" &&
-        targetGameId !== "admin" &&
-        targetGameId !== "player"
-      ) {
+      if (targetGameId && isValidGameId(targetGameId)) {
         if (savedPlayerName && savedIcebreaker) {
           // Auto-rejoin with saved credentials
           handleAutoJoinFromUrl(targetGameId, savedPlayerName, savedIcebreaker);

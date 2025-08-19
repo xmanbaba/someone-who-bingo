@@ -191,14 +191,6 @@ const Scoreboard = ({
     }
   };
 
-  const handleShareJoinLink = () => {
-    const joinUrl = `${window.location.origin}/join/${game.id}`;
-    navigator.clipboard
-      .writeText(joinUrl)
-      .then(() => alert("Game join link copied!"))
-      .catch(() => alert("Copy failed – please copy manually"));
-  };
-
   return (
     <>
       <div className="space-y-6 p-4 sm:p-6 md:p-8 bg-white rounded-3xl shadow-xl max-w-5xl mx-auto border-2 border-purple-300">
@@ -215,21 +207,13 @@ const Scoreboard = ({
               {game.gridSize}×{game.gridSize}
             </strong>
           </p>
-          <div className="flex flex-col sm:flex-row gap-2 mt-3 justify-center">
+          <div className="flex justify-center mt-3">
             <button
               onClick={handleShareResults}
               className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
             >
               🔗 Share Scoreboard
             </button>
-            {isAdmin && (
-              <button
-                onClick={handleShareJoinLink}
-                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm"
-              >
-                📋 Share Join Link
-              </button>
-            )}
           </div>
         </div>
 

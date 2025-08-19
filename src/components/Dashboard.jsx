@@ -9,7 +9,6 @@ import {
   doc,
   getDoc,
 } from "firebase/firestore";
-//import ProfileIcon from "./ProfileIcon";
 
 const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
   const navigate = useNavigate();
@@ -30,83 +29,70 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
       try {
         setLoading(true);
 
-        // Get all games where the user participated
+        // Get all games where the user was admin/creator
         const gamesRef = collection(
           db,
           `artifacts/${appId}/public/data/bingoGames`
         );
-        const gamesSnapshot = await getDocs(gamesRef);
+
+        // Query for games where user is admin/creator
+        const adminGamesQuery = query(
+          gamesRef,
+          where("createdBy", "==", currentUserId)
+        );
+        const adminGamesSnapshot = await getDocs(adminGamesQuery);
 
         const userGames = [];
+        const gameProcessingPromises = [];
 
-        // Check each game for user participation
-        for (const gameDoc of gamesSnapshot.docs) {
+        // Process admin games
+        adminGamesSnapshot.docs.forEach((gameDoc) => {
           const gameData = gameDoc.data();
+          gameProcessingPromises.push(processGameData(gameDoc, gameData, true));
+        });
 
-          // Check if user was admin/creator
-          const isAdmin =
-            gameData.adminId === currentUserId ||
-            gameData.createdBy === currentUserId;
+        // Get all games to check for player participation (more efficient than individual checks)
+        const allGamesSnapshot = await getDocs(gamesRef);
 
-          // Check if user was a player
-          const playersRef = collection(
-            db,
-            `artifacts/${appId}/public/data/bingoGames/${gameDoc.id}/players`
-          );
-          const playerDoc = await getDoc(doc(playersRef, currentUserId));
+        // For each game, check if user is a player (in parallel)
+        const playerCheckPromises = allGamesSnapshot.docs
+          .filter(
+            (gameDoc) =>
+              !adminGamesSnapshot.docs.some(
+                (adminDoc) => adminDoc.id === gameDoc.id
+              )
+          )
+          .map(async (gameDoc) => {
+            const gameData = gameDoc.data();
+            const playerDocRef = doc(
+              db,
+              `artifacts/${appId}/public/data/bingoGames/${gameDoc.id}/players`,
+              currentUserId
+            );
 
-          if (isAdmin || playerDoc.exists()) {
-            const playerData = playerDoc.exists() ? playerDoc.data() : null;
+            try {
+              const playerDocSnap = await getDoc(playerDocRef);
+              if (playerDocSnap.exists()) {
+                return processGameData(gameDoc, gameData, false);
+              }
+            } catch (error) {
+              console.warn(
+                `Error checking player data for game ${gameDoc.id}:`,
+                error
+              );
+            }
+            return null;
+          });
 
-            // Get all players for this game to determine ranking
-            const allPlayersSnapshot = await getDocs(playersRef);
-            const allPlayers = allPlayersSnapshot.docs.map((doc) => ({
-              id: doc.id,
-              ...doc.data(),
-            }));
+        // Process all games in parallel
+        const [adminResults, ...playerResults] = await Promise.all([
+          Promise.all(gameProcessingPromises),
+          ...playerCheckPromises,
+        ]);
 
-            // Calculate scores and ranking
-            const playersWithScores = allPlayers
-              .map((p) => {
-                const filled = p.checkedSquares?.length || 0;
-                const correct = (p.checkedSquares || []).filter(
-                  (s) => s.correct === true
-                ).length;
-                const completionScore =
-                  (filled / (gameData.gridSize * gameData.gridSize)) * 40;
-                const accuracyScore =
-                  filled === 0 ? 0 : (correct / filled) * 60;
-                return {
-                  ...p,
-                  totalScore: completionScore + accuracyScore,
-                };
-              })
-              .sort((a, b) => b.totalScore - a.totalScore);
-
-            const userRank =
-              playersWithScores.findIndex((p) => p.id === currentUserId) + 1;
-            const userScore =
-              playersWithScores.find((p) => p.id === currentUserId)
-                ?.totalScore || 0;
-
-            userGames.push({
-              id: gameDoc.id,
-              ...gameData,
-              userRole: isAdmin ? "admin" : "player",
-              playerData: playerData,
-              rank: userRank > 0 ? userRank : null,
-              totalPlayers: allPlayers.length,
-              userScore: userScore,
-              playedAt:
-                gameData.startTime?.toMillis?.() ||
-                gameData.createdAt?.toMillis?.() ||
-                gameData.scoringEndTime?.toMillis?.() ||
-                null,
-
-              isWin: userRank === 1 && allPlayers.length > 1,
-            });
-          }
-        }
+        // Combine results
+        userGames.push(...adminResults);
+        userGames.push(...playerResults.filter(Boolean));
 
         // Sort by most recent first
         userGames.sort((a, b) => b.playedAt - a.playedAt);
@@ -122,9 +108,9 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
         ).length;
         const totalWins = userGames.filter((g) => g.isWin).length;
         const averageScore =
-          userGames.length > 0
+          totalGames > 0
             ? userGames.reduce((sum, g) => sum + (g.userScore || 0), 0) /
-              userGames.length
+              totalGames
             : 0;
 
         setStats({
@@ -138,6 +124,66 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
         console.error("Error loading game history:", error);
       } finally {
         setLoading(false);
+      }
+    };
+
+    // Helper function to process individual game data
+    const processGameData = async (gameDoc, gameData, isAdmin) => {
+      try {
+        // Get all players for this game
+        const playersRef = collection(
+          db,
+          `artifacts/${appId}/public/data/bingoGames/${gameDoc.id}/players`
+        );
+        const allPlayersSnapshot = await getDocs(playersRef);
+        const allPlayers = allPlayersSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        const playerData = allPlayers.find((p) => p.id === currentUserId);
+
+        // Calculate scores and ranking efficiently
+        const playersWithScores = allPlayers
+          .map((p) => {
+            const filled = p.checkedSquares?.length || 0;
+            const correct = (p.checkedSquares || []).filter(
+              (s) => s.correct === true
+            ).length;
+            const completionScore =
+              (filled / (gameData.gridSize * gameData.gridSize)) * 40;
+            const accuracyScore = filled === 0 ? 0 : (correct / filled) * 60;
+            return {
+              ...p,
+              totalScore: completionScore + accuracyScore,
+            };
+          })
+          .sort((a, b) => b.totalScore - a.totalScore);
+
+        const userRank =
+          playersWithScores.findIndex((p) => p.id === currentUserId) + 1;
+        const userScore =
+          playersWithScores.find((p) => p.id === currentUserId)?.totalScore ||
+          0;
+
+        return {
+          id: gameDoc.id,
+          ...gameData,
+          userRole: isAdmin ? "admin" : "player",
+          playerData: playerData,
+          rank: userRank > 0 ? userRank : null,
+          totalPlayers: allPlayers.length,
+          userScore: userScore,
+          playedAt:
+            gameData.startTime?.toMillis?.() ||
+            gameData.createdAt?.toMillis?.() ||
+            gameData.scoringEndTime?.toMillis?.() ||
+            Date.now(),
+          isWin: userRank === 1 && allPlayers.length > 1,
+        };
+      } catch (error) {
+        console.warn(`Error processing game ${gameDoc.id}:`, error);
+        return null;
       }
     };
 
@@ -155,7 +201,6 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
       minute: "2-digit",
     });
   };
-
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -236,11 +281,6 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
             </button>
             <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           </div>
-          {/* <ProfileIcon
-            currentUserId={currentUserId}
-            onSignOut={onSignOut}
-            auth={auth}
-          /> */}
         </div>
       </div>
 

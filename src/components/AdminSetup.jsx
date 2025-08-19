@@ -34,7 +34,7 @@ const AdminSetup = ({
   const [uploadedFile, setUploadedFile] = useState(null);
   const [currentQuestions, setCurrentQuestions] = useState([]);
 
-  const industries = [
+  const topics = [
     "General",
     "Human Resources",
     "Technology",
@@ -182,7 +182,7 @@ const AdminSetup = ({
     const finalIndustry =
       selectedIndustry === "Other" ? customIndustry : selectedIndustry;
 
-    if (!finalIndustry) return showError("Please select or enter an industry");
+    if (!finalIndustry) return showError("Please select or enter a topic of your choice");
 
     let newGameId;
 
@@ -269,7 +269,7 @@ const AdminSetup = ({
             className="w-full border border-blue-300 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-300"
           >
             <option value="">Select an industry</option>
-            {industries.map((i) => (
+            {topics.map((i) => (
               <option key={i} value={i}>
                 {i}
               </option>
@@ -280,7 +280,7 @@ const AdminSetup = ({
           {selectedIndustry === "Other" && (
             <input
               type="text"
-              placeholder="Enter your industry"
+              placeholder="Enter any topic of choice"
               value={customIndustry}
               onChange={(e) => setCustomIndustry(e.target.value)}
               className="mt-2 w-full border border-blue-300 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-300"
