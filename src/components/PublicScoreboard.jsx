@@ -11,7 +11,6 @@ import {
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-
 export default function PublicScoreboard() {
   const { appId, gameId } = useParams();
   const [game, setGame] = useState(null);
@@ -162,10 +161,72 @@ export default function PublicScoreboard() {
     const completionScore = (filled / totalSquares) * 40;
     const accuracyScore = filled === 0 ? 0 : (correct / filled) * 60;
 
-    const timeScore =
-      player?.endTime && player?.startTime
-        ? (player.endTime - player.startTime) / 1000
-        : Infinity;
+    // Enhanced time score calculation (same as main Scoreboard)
+    let timeScore = Infinity;
+
+    try {
+      let startTime = null;
+      let endTime = null;
+
+      // Get start time from various sources
+      if (player?.startTime) {
+        if (typeof player.startTime.toMillis === "function") {
+          startTime = player.startTime.toMillis();
+        } else if (typeof player.startTime === "number") {
+          startTime = player.startTime;
+        } else if (player.startTime.seconds) {
+          startTime =
+            player.startTime.seconds * 1000 +
+            (player.startTime.nanoseconds || 0) / 1000000;
+        }
+      }
+
+      // Fallback to game start time
+      if (!startTime && gameData?.startTime) {
+        if (typeof gameData.startTime.toMillis === "function") {
+          startTime = gameData.startTime.toMillis();
+        } else if (typeof gameData.startTime === "number") {
+          startTime = gameData.startTime;
+        } else if (gameData.startTime.seconds) {
+          startTime =
+            gameData.startTime.seconds * 1000 +
+            (gameData.startTime.nanoseconds || 0) / 1000000;
+        }
+      }
+
+      // Get end time
+      if (player?.endTime) {
+        if (typeof player.endTime.toMillis === "function") {
+          endTime = player.endTime.toMillis();
+        } else if (typeof player.endTime === "number") {
+          endTime = player.endTime;
+        } else if (player.endTime.seconds) {
+          endTime =
+            player.endTime.seconds * 1000 +
+            (player.endTime.nanoseconds || 0) / 1000000;
+        }
+      }
+
+      // Fallback to submission time
+      if (!endTime && player?.submissionTime) {
+        if (typeof player.submissionTime.toMillis === "function") {
+          endTime = player.submissionTime.toMillis();
+        } else if (typeof player.submissionTime === "number") {
+          endTime = player.submissionTime;
+        } else if (player.submissionTime.seconds) {
+          endTime =
+            player.submissionTime.seconds * 1000 +
+            (player.submissionTime.nanoseconds || 0) / 1000000;
+        }
+      }
+
+      // Calculate time if both are available
+      if (startTime && endTime && endTime > startTime) {
+        timeScore = (endTime - startTime) / 1000;
+      }
+    } catch (error) {
+      console.warn("Error calculating time score:", error);
+    }
 
     return {
       completionScore,
@@ -178,6 +239,24 @@ export default function PublicScoreboard() {
     };
   };
 
+  const formatTime = (timeInSeconds) => {
+    if (
+      timeInSeconds === Infinity ||
+      isNaN(timeInSeconds) ||
+      timeInSeconds <= 0
+    ) {
+      return "N/A";
+    }
+
+    if (timeInSeconds < 60) {
+      return `${timeInSeconds.toFixed(1)}s`;
+    } else {
+      const minutes = Math.floor(timeInSeconds / 60);
+      const seconds = Math.floor(timeInSeconds % 60);
+      return `${minutes}m ${seconds}s`;
+    }
+  };
+
   const handleDownloadPDF = () => {
     if (!players.length) return;
 
@@ -188,7 +267,7 @@ export default function PublicScoreboard() {
     const tableColumn = [
       "Rank",
       "Player",
-      "Time (s)",
+      "Time",
       "Completion",
       "Accuracy",
       "Total",
@@ -198,7 +277,7 @@ export default function PublicScoreboard() {
       return [
         i + 1,
         player.name || "Unnamed",
-        scores.timeScore === Infinity ? "N/A" : scores.timeScore.toFixed(1),
+        formatTime(scores.timeScore),
         scores.completionScore.toFixed(1),
         scores.accuracyScore.toFixed(1),
         scores.aggregate.toFixed(1),
@@ -211,7 +290,6 @@ export default function PublicScoreboard() {
       body: tableRows,
       theme: "striped",
     });
-
 
     doc.setFontSize(10);
     doc.text(
@@ -236,25 +314,6 @@ export default function PublicScoreboard() {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      {/* {process.env.NODE_ENV === "development" && (
-        <div className="mb-6 p-4 bg-gray-100 rounded-lg">
-          <h3 className="font-bold mb-2">Debug Information:</h3>
-          <p className="text-sm mb-2">
-            App ID: <code>{appId}</code>
-          </p>
-          <p className="text-sm mb-2">
-            Game ID: <code>{gameId}</code>
-          </p>
-          <div className="text-xs space-y-1">
-            {debugInfo.map((info, index) => (
-              <div key={index} className="font-mono">
-                {info}
-              </div>
-            ))}
-          </div>
-        </div>
-      )} */}
-
       {error && (
         <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
           <h3 className="font-bold mb-2">Error Loading Scoreboard</h3>
@@ -358,9 +417,7 @@ export default function PublicScoreboard() {
                               {player.name || "Unnamed Player"}
                             </td>
                             <td className="py-3 px-2 text-right text-gray-600">
-                              {scores.timeScore === Infinity
-                                ? "N/A"
-                                : `${scores.timeScore.toFixed(1)}s`}
+                              {formatTime(scores.timeScore)}
                             </td>
                             <td className="py-3 px-2 text-right">
                               <div className="text-gray-900">

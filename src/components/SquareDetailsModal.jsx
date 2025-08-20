@@ -62,7 +62,7 @@ const SquareDetailsModal = ({
                                 ))}
                             </ul>
                         ) : (
-                            <p className="text-gray-500 italic text-center py-2 font-inter-rounded">No one found yet for this square.</p>
+                            <p className="text-gray-500 italic text-center py-2 font-inter-rounded">No one found yet for this square.(Click +Add to add a person)</p>
                         )}
 
                         {/* Input for adding new names */}

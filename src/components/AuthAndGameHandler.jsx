@@ -50,6 +50,7 @@ const SESSION_KEYS = {
   PLAYER_NAME: "bingo_player_name",
   PLAYER_ICEBREAKER: "bingo_player_icebreaker",
   LAST_ROUTE: "bingo_last_route",
+  PLAYER_START_TIME: "bingo_player_start_time", // Add start time tracking
 };
 
 // Routes that should NOT trigger auto-join logic
@@ -139,25 +140,76 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
     };
   }, []);
 
-  // Auto-navigation when game status changes
+  // Auto-navigation when game status changes + Time tracking
   useEffect(() => {
-    if (gameId && gameData?.status) {
+    if (gameId && gameData?.status && currentUserId) {
       const currentPath = location.pathname;
 
       // Save current route to session
       saveSession({ [SESSION_KEYS.LAST_ROUTE]: currentPath });
 
-      // Navigate based on game status
+      // Handle player time tracking when game starts
       if (gameData.status === "playing" && !currentPath.includes("/play/")) {
+        // Record start time for player when they enter playing state
+        const startTime = Date.now();
+        saveSession({ [SESSION_KEYS.PLAYER_START_TIME]: startTime });
+
+        // Update player start time in database if not already set
+        if (db && playerData && !playerData.startTime) {
+          const playerDocRef = doc(
+            db,
+            `artifacts/${appId}/public/data/bingoGames/${gameId}/players`,
+            currentUserId
+          );
+          updateDoc(playerDocRef, {
+            startTime: startTime,
+          }).catch((error) => {
+            console.warn("Failed to update player start time:", error);
+          });
+        }
+
         navigate(`/play/${gameId}`, { replace: true });
       } else if (
         (gameData.status === "scoring" || gameData.status === "ended") &&
         !currentPath.includes("/score/")
       ) {
+        // Record end time for player when game ends
+        const endTime = Date.now();
+        const startTime =
+          getSession(SESSION_KEYS.PLAYER_START_TIME) ||
+          playerData?.startTime ||
+          gameData.startTime?.toMillis?.() ||
+          gameData.startTime ||
+          endTime;
+
+        if (db && playerData && !playerData.endTime) {
+          const playerDocRef = doc(
+            db,
+            `artifacts/${appId}/public/data/bingoGames/${gameId}/players`,
+            currentUserId
+          );
+          updateDoc(playerDocRef, {
+            endTime: endTime,
+            startTime: startTime, // Ensure start time is recorded
+          }).catch((error) => {
+            console.warn("Failed to update player end time:", error);
+          });
+        }
+
         navigate(`/score/${gameId}`, { replace: true });
       }
     }
-  }, [gameData?.status, gameId, navigate, location.pathname, saveSession]);
+  }, [
+    gameData?.status,
+    gameId,
+    navigate,
+    location.pathname,
+    saveSession,
+    currentUserId,
+    db,
+    playerData,
+    getSession,
+  ]);
 
   // Helper function to determine if a path segment is a valid game ID
   const isValidGameId = (segment) => {
@@ -612,6 +664,9 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
           isSubmitted: false,
           score: 0,
           icebreaker: icebreaker,
+          // Initialize time tracking fields
+          startTime: null,
+          endTime: null,
         });
         showMessageModal(
           `Joined game ${gameDataFound.id} as ${playerName}!`,
@@ -679,6 +734,31 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
         return;
       }
 
+      // Record end time for current player when game finishes
+      if (currentUserId && playerData) {
+        const endTime = Date.now();
+        const playerDocRef = doc(
+          db,
+          `artifacts/${appId}/public/data/bingoGames/${gameId}/players`,
+          currentUserId
+        );
+
+        // Get start time from various sources
+        const startTime =
+          getSession(SESSION_KEYS.PLAYER_START_TIME) ||
+          playerData.startTime ||
+          gameData.startTime?.toMillis?.() ||
+          gameData.startTime ||
+          endTime; // fallback
+
+        updateDoc(playerDocRef, {
+          endTime: endTime,
+          startTime: startTime, // Ensure start time is recorded
+        }).catch((error) => {
+          console.warn("Failed to update player times on game finish:", error);
+        });
+      }
+
       const gameRef = doc(
         db,
         `artifacts/${appId}/public/data/bingoGames`,
@@ -691,11 +771,12 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
         status: "scoring",
         scoringEndTime,
         endedBy: isTimeUp ? "timer" : currentUserId,
+        endedAt: Date.now(), // Add end timestamp for the game
       }).catch((error) =>
         console.error("Error setting scoring status:", error)
       );
     },
-    [db, gameId, gameData, appId, currentUserId]
+    [db, gameId, gameData, appId, currentUserId, playerData, getSession]
   );
 
   const handleAskMore = async (playerToAsk) => {

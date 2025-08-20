@@ -29,70 +29,52 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
       try {
         setLoading(true);
 
-        // Get all games where the user was admin/creator
         const gamesRef = collection(
           db,
           `artifacts/${appId}/public/data/bingoGames`
         );
 
-        // Query for games where user is admin/creator
-        const adminGamesQuery = query(
-          gamesRef,
-          where("createdBy", "==", currentUserId)
-        );
-        const adminGamesSnapshot = await getDocs(adminGamesQuery);
-
-        const userGames = [];
-        const gameProcessingPromises = [];
-
-        // Process admin games
-        adminGamesSnapshot.docs.forEach((gameDoc) => {
-          const gameData = gameDoc.data();
-          gameProcessingPromises.push(processGameData(gameDoc, gameData, true));
-        });
-
-        // Get all games to check for player participation (more efficient than individual checks)
+        // Get ALL games to process them properly
         const allGamesSnapshot = await getDocs(gamesRef);
 
-        // For each game, check if user is a player (in parallel)
-        const playerCheckPromises = allGamesSnapshot.docs
-          .filter(
-            (gameDoc) =>
-              !adminGamesSnapshot.docs.some(
-                (adminDoc) => adminDoc.id === gameDoc.id
-              )
-          )
-          .map(async (gameDoc) => {
+        const gameProcessingPromises = allGamesSnapshot.docs.map(
+          async (gameDoc) => {
             const gameData = gameDoc.data();
-            const playerDocRef = doc(
-              db,
-              `artifacts/${appId}/public/data/bingoGames/${gameDoc.id}/players`,
-              currentUserId
-            );
 
+            // Check if user is admin/creator
+            const isAdmin =
+              gameData.createdBy === currentUserId ||
+              gameData.adminId === currentUserId;
+
+            // Check if user is a player
+            let isPlayer = false;
             try {
+              const playerDocRef = doc(
+                db,
+                `artifacts/${appId}/public/data/bingoGames/${gameDoc.id}/players`,
+                currentUserId
+              );
               const playerDocSnap = await getDoc(playerDocRef);
-              if (playerDocSnap.exists()) {
-                return processGameData(gameDoc, gameData, false);
-              }
+              isPlayer = playerDocSnap.exists();
             } catch (error) {
               console.warn(
                 `Error checking player data for game ${gameDoc.id}:`,
                 error
               );
             }
-            return null;
-          });
 
-        // Process all games in parallel
-        const [adminResults, ...playerResults] = await Promise.all([
-          Promise.all(gameProcessingPromises),
-          ...playerCheckPromises,
-        ]);
+            // Only include games where user participated
+            if (!isAdmin && !isPlayer) {
+              return null;
+            }
 
-        // Combine results and filter out nulls
-        userGames.push(...adminResults.filter(Boolean));
-        userGames.push(...playerResults.filter(Boolean));
+            return await processGameData(gameDoc, gameData, isAdmin, isPlayer);
+          }
+        );
+
+        // Process all games in parallel and filter out nulls
+        const gameResults = await Promise.all(gameProcessingPromises);
+        const userGames = gameResults.filter(Boolean);
 
         // Sort by most recent first
         userGames.sort((a, b) => b.playedAt - a.playedAt);
@@ -128,7 +110,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
     };
 
     // Helper function to process individual game data
-    const processGameData = async (gameDoc, gameData, isAdmin) => {
+    const processGameData = async (gameDoc, gameData, isAdmin, isPlayer) => {
       try {
         // Get all players for this game
         const playersRef = collection(
@@ -143,7 +125,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
 
         const playerData = allPlayers.find((p) => p.id === currentUserId);
 
-        // Calculate scores and ranking efficiently
+        // Calculate scores and ranking
         const playersWithScores = allPlayers
           .map((p) => {
             const filled = p.checkedSquares?.length || 0;
@@ -166,26 +148,34 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
           playersWithScores.find((p) => p.id === currentUserId)?.totalScore ||
           0;
 
-        // Better timestamp handling
-        let playedAt = Date.now(); // fallback to current time
+        // Better timestamp handling with proper Firestore timestamp conversion
+        let playedAt = Date.now(); // fallback
 
-        if (gameData.startTime) {
-          if (typeof gameData.startTime.toMillis === "function") {
-            playedAt = gameData.startTime.toMillis();
-          } else if (typeof gameData.startTime === "number") {
-            playedAt = gameData.startTime;
-          }
-        } else if (gameData.createdAt) {
-          if (typeof gameData.createdAt.toMillis === "function") {
-            playedAt = gameData.createdAt.toMillis();
-          } else if (typeof gameData.createdAt === "number") {
-            playedAt = gameData.createdAt;
-          }
-        } else if (gameData.scoringEndTime) {
-          if (typeof gameData.scoringEndTime.toMillis === "function") {
-            playedAt = gameData.scoringEndTime.toMillis();
-          } else if (typeof gameData.scoringEndTime === "number") {
-            playedAt = gameData.scoringEndTime;
+        // Priority order: startTime -> createdAt -> scoringEndTime -> current time
+        const timestampFields = ["startTime", "createdAt", "scoringEndTime"];
+
+        for (const field of timestampFields) {
+          if (gameData[field]) {
+            try {
+              if (typeof gameData[field].toMillis === "function") {
+                playedAt = gameData[field].toMillis();
+                break;
+              } else if (typeof gameData[field].toDate === "function") {
+                playedAt = gameData[field].toDate().getTime();
+                break;
+              } else if (typeof gameData[field] === "number") {
+                playedAt = gameData[field];
+                break;
+              } else if (gameData[field].seconds) {
+                // Handle raw Firestore timestamp object
+                playedAt =
+                  gameData[field].seconds * 1000 +
+                  (gameData[field].nanoseconds || 0) / 1000000;
+                break;
+              }
+            } catch (error) {
+              console.warn(`Error processing timestamp field ${field}:`, error);
+            }
           }
         }
 
@@ -211,14 +201,21 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
 
   const formatDate = (timestamp) => {
     if (!timestamp) return "Unknown date";
-    const date = new Date(timestamp);
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    try {
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) return "Unknown date";
+
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch (error) {
+      console.warn("Error formatting date:", error);
+      return "Unknown date";
+    }
   };
 
   const getStatusColor = (status) => {
@@ -413,12 +410,15 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                       <div className="text-sm text-gray-600 space-y-1">
                         <div>
                           Industry:{" "}
-                          <span className="font-medium">{game.industry}</span>
+                          <span className="font-medium">
+                            {game.industry || "Unknown"}
+                          </span>
                         </div>
                         <div>
                           Grid:{" "}
                           <span className="font-medium">
-                            {game.gridSize}×{game.gridSize}
+                            {game.gridSize || "Unknown"}×
+                            {game.gridSize || "Unknown"}
                           </span>
                         </div>
                         <div>

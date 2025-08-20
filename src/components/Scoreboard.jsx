@@ -136,29 +136,98 @@ const Scoreboard = ({
   const navigate = useNavigate();
   const [openBoard, setOpenBoard] = useState(null);
 
-  const computeScores = (p) => {
-    const filled = p?.checkedSquares?.length || 0;
-    const correct = (p?.checkedSquares || []).filter(
+  const computePlayerScore = (player, gameData) => {
+    const filled = player?.checkedSquares?.length || 0;
+    const correct = (player?.checkedSquares || []).filter(
       (s) => s.correct === true
     ).length;
 
-    const completionScore = (filled / (game.gridSize * game.gridSize)) * 40;
+    const gridSize = gameData?.gridSize || 5;
+    const totalSquares = gridSize * gridSize;
+
+    const completionScore = (filled / totalSquares) * 40;
     const accuracyScore = filled === 0 ? 0 : (correct / filled) * 60;
 
-    // Time score: lower is better (in seconds)
-    const timeScore =
-      p?.endTime && p?.startTime ? (p.endTime - p.startTime) / 1000 : Infinity; // fallback for missing data
+    // Enhanced time score calculation (same as main Scoreboard)
+    let timeScore = Infinity;
+
+    try {
+      let startTime = null;
+      let endTime = null;
+
+      // Get start time from various sources
+      if (player?.startTime) {
+        if (typeof player.startTime.toMillis === "function") {
+          startTime = player.startTime.toMillis();
+        } else if (typeof player.startTime === "number") {
+          startTime = player.startTime;
+        } else if (player.startTime.seconds) {
+          startTime =
+            player.startTime.seconds * 1000 +
+            (player.startTime.nanoseconds || 0) / 1000000;
+        }
+      }
+
+      // Fallback to game start time
+      if (!startTime && gameData?.startTime) {
+        if (typeof gameData.startTime.toMillis === "function") {
+          startTime = gameData.startTime.toMillis();
+        } else if (typeof gameData.startTime === "number") {
+          startTime = gameData.startTime;
+        } else if (gameData.startTime.seconds) {
+          startTime =
+            gameData.startTime.seconds * 1000 +
+            (gameData.startTime.nanoseconds || 0) / 1000000;
+        }
+      }
+
+      // Get end time
+      if (player?.endTime) {
+        if (typeof player.endTime.toMillis === "function") {
+          endTime = player.endTime.toMillis();
+        } else if (typeof player.endTime === "number") {
+          endTime = player.endTime;
+        } else if (player.endTime.seconds) {
+          endTime =
+            player.endTime.seconds * 1000 +
+            (player.endTime.nanoseconds || 0) / 1000000;
+        }
+      }
+
+      // Fallback to submission time
+      if (!endTime && player?.submissionTime) {
+        if (typeof player.submissionTime.toMillis === "function") {
+          endTime = player.submissionTime.toMillis();
+        } else if (typeof player.submissionTime === "number") {
+          endTime = player.submissionTime;
+        } else if (player.submissionTime.seconds) {
+          endTime =
+            player.submissionTime.seconds * 1000 +
+            (player.submissionTime.nanoseconds || 0) / 1000000;
+        }
+      }
+
+      // Calculate time if both are available
+      if (startTime && endTime && endTime > startTime) {
+        timeScore = (endTime - startTime) / 1000;
+      }
+    } catch (error) {
+      console.warn("Error calculating time score:", error);
+    }
 
     return {
       completionScore,
       accuracyScore,
       aggregate: completionScore + accuracyScore,
       timeScore,
+      filled,
+      correct,
+      totalSquares,
     };
   };
 
   const sortedPlayers = [...players]
-    .map((p) => ({ ...p, ...computeScores(p) }))
+    .map((p) => ({ ...p, ...computePlayerScore(p, game) }))
     .sort((a, b) => b.aggregate - a.aggregate);
 
   const handleShareResults = async () => {
@@ -188,6 +257,24 @@ const Scoreboard = ({
         .writeText(shareUrl)
         .then(() => alert("Public scoreboard link copied!"))
         .catch(() => alert("Copy failed – please copy manually"));
+    }
+  };
+
+  const formatTime = (timeInSeconds) => {
+    if (
+      timeInSeconds === Infinity ||
+      isNaN(timeInSeconds) ||
+      timeInSeconds <= 0
+    ) {
+      return "N/A";
+    }
+
+    if (timeInSeconds < 60) {
+      return `${timeInSeconds.toFixed(1)}s`;
+    } else {
+      const minutes = Math.floor(timeInSeconds / 60);
+      const seconds = Math.floor(timeInSeconds % 60);
+      return `${minutes}m ${seconds}s`;
     }
   };
 
@@ -247,7 +334,7 @@ const Scoreboard = ({
                     {p.name} {p.id === currentUserId && "(You)"}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    {p.timeScore === Infinity ? "N/A" : p.timeScore.toFixed(1)}
+                    {formatTime(p.timeScore)}
                   </td>
                   <td className="px-3 py-2 text-right">
                     {p.completionScore.toFixed(1)}

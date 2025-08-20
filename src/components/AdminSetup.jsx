@@ -262,7 +262,7 @@ const AdminSetup = ({
         </h3>
         {/* Industry */}
         <div>
-          <label className="block text-sm font-semibold mb-1">Industry</label>
+          <label className="block text-sm font-semibold mb-1">Topic</label>
           <select
             value={selectedIndustry}
             onChange={(e) => setSelectedIndustry(e.target.value)}
