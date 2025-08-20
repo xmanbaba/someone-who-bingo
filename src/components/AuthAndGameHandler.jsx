@@ -50,7 +50,7 @@ const SESSION_KEYS = {
   PLAYER_NAME: "bingo_player_name",
   PLAYER_ICEBREAKER: "bingo_player_icebreaker",
   LAST_ROUTE: "bingo_last_route",
-  PLAYER_START_TIME: "bingo_player_start_time", // Add start time tracking
+  PLAYER_START_TIME: "bingo_player_start_time",
 };
 
 // Routes that should NOT trigger auto-join logic
@@ -260,7 +260,12 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
       if (targetGameId && isValidGameId(targetGameId)) {
         if (savedPlayerName && savedIcebreaker) {
           // Auto-rejoin with saved credentials
-          handleAutoJoinFromUrl(targetGameId, savedPlayerName, savedIcebreaker);
+          handleAutoJoinFromUrl(
+            targetGameId,
+            navigate,
+            savedPlayerName,
+            savedIcebreaker
+          );
         } else {
           // Need to collect player info first
           navigate(`/player/join?autoJoin=${targetGameId}`);
@@ -270,7 +275,6 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
         savedRoute !== "/auth" &&
         savedRoute !== "/" &&
         !location.pathname.includes("/dashboard") &&
-        !location.pathname.includes("/score/") &&
         !location.pathname.includes("/role")
       ) {
         // Restore last route if no specific game to join and not on protected routes
@@ -496,6 +500,7 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
 
   const handleAutoJoinFromUrl = async (
     roomCode,
+    navigateFunction = navigate,
     savedName = null,
     savedIcebreaker = null
   ) => {
@@ -511,7 +516,7 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
 
       if (gameSnapshot.empty) {
         showMessageModal("Game not found. Please check the code.", "error");
-        navigate("/role");
+        navigateFunction("/role");
         return;
       }
 
@@ -542,17 +547,17 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
         // Navigate to appropriate screen based on game status
         switch (gameDataFound.status) {
           case "waiting":
-            navigate(`/waiting/${gameDataFound.id}`);
+            navigateFunction(`/waiting/${gameDataFound.id}`);
             break;
           case "playing":
-            navigate(`/play/${gameDataFound.id}`);
+            navigateFunction(`/play/${gameDataFound.id}`);
             break;
           case "scoring":
           case "ended":
-            navigate(`/score/${gameDataFound.id}`);
+            navigateFunction(`/score/${gameDataFound.id}`);
             break;
           default:
-            navigate(`/waiting/${gameDataFound.id}`);
+            navigateFunction(`/waiting/${gameDataFound.id}`);
         }
       } else if (savedName && savedIcebreaker) {
         // Auto-join with saved credentials
@@ -566,15 +571,15 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
         });
 
         showMessageModal(`Joined game as ${savedName}!`, "success");
-        navigate(`/waiting/${gameDataFound.id}`);
+        navigateFunction(`/waiting/${gameDataFound.id}`);
       } else {
         // Need player info - redirect to join page with auto-join flag
-        navigate(`/player/join?autoJoin=${roomCode}`);
+        navigateFunction(`/player/join?autoJoin=${roomCode}`);
       }
     } catch (error) {
       console.error("Error auto-joining game:", error);
       showMessageModal(`Failed to join game: ${error.message}`, "error");
-      navigate("/role");
+      navigateFunction("/role");
     }
   };
 

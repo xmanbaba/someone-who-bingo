@@ -63,15 +63,21 @@ const shouldShowGameRoute = (
   gameId,
   gameData,
   connectionError,
-  expectedStatus = null
+  expectedStatus = null,
+  urlGameId = null
 ) => {
   // If there's a connection error, allow the route to show (don't redirect)
-  if (connectionError && gameId) {
+  if (connectionError && (gameId || urlGameId)) {
+    return true;
+  }
+
+  // If we have a URL game ID that doesn't match current game, allow it (for deep links)
+  if (urlGameId && gameId !== urlGameId) {
     return true;
   }
 
   // If no gameId at all, redirect
-  if (!gameId) {
+  if (!gameId && !urlGameId) {
     return false;
   }
 
@@ -262,22 +268,28 @@ export default function App() {
                         if (
                           currentUserId &&
                           urlGameId &&
-                          !gameId &&
-                          urlGameId !== gameId
+                          urlGameId !== gameId &&
+                          !connectionError
                         ) {
                           handleAutoJoinFromUrl(urlGameId, navigate);
                         }
-                      }, [currentUserId, urlGameId, gameId]);
+                      }, [currentUserId, urlGameId, gameId, connectionError]);
 
+                      // Allow route to show for URL game ID or current game ID
                       return shouldShowGameRoute(
                         gameId,
                         gameData,
-                        connectionError
+                        connectionError,
+                        null,
+                        urlGameId
                       ) ? (
-                        gameData?.status === "playing" ? (
+                        // Check status only if we have game data
+                        gameData?.status === "playing" &&
+                        gameId === urlGameId ? (
                           <Navigate to={`/play/${gameId}`} replace />
-                        ) : gameData?.status === "scoring" ||
-                          gameData?.status === "ended" ? (
+                        ) : (gameData?.status === "scoring" ||
+                            gameData?.status === "ended") &&
+                          gameId === urlGameId ? (
                           <Navigate to={`/score/${gameId}`} replace />
                         ) : (
                           <WaitingRoom
@@ -288,7 +300,7 @@ export default function App() {
                               gameData?.adminId === currentUserId ||
                               gameData?.createdBy === currentUserId
                             }
-                            roomCode={gameId}
+                            roomCode={gameId || urlGameId}
                             db={db}
                             appId={appId}
                             showError={(msg) => alert(`error: ${msg}`)}
@@ -315,29 +327,41 @@ export default function App() {
               <Route
                 path="/play/:gameId"
                 element={
-                  shouldShowGameRoute(gameId, gameData, connectionError) &&
-                  (gameData?.status === "playing" || connectionError) ? (
-                    <PlayingGame
-                      game={gameData}
-                      player={playerData}
-                      gamePlayers={gamePlayers}
-                      onFinishGame={handleFinishGame}
-                      showError={(msg) => alert(`error: ${msg}`)}
-                      showSuccess={(msg) => alert(`success: ${msg}`)}
-                      onAskMore={handleAskMore}
-                      isGeneratingAskMore={isGeneratingAskMore}
-                      currentUserId={currentUserId}
-                      db={db}
-                      appId={appId}
-                      onBackToRoleSelection={() => window.history.back()}
-                      onSignOut={() => signOut()}
-                      connectionError={connectionError}
-                      retryCount={retryCount}
-                      auth={auth}
-                    />
-                  ) : (
-                    <Navigate to="/role" replace />
-                  )
+                  <GameDeepLink>
+                    {({ urlGameId }) => {
+                      return shouldShowGameRoute(
+                        gameId,
+                        gameData,
+                        connectionError,
+                        null,
+                        urlGameId
+                      ) &&
+                        ((gameData?.status === "playing" &&
+                          gameId === urlGameId) ||
+                          connectionError) ? (
+                        <PlayingGame
+                          game={gameData}
+                          player={playerData}
+                          gamePlayers={gamePlayers}
+                          onFinishGame={handleFinishGame}
+                          showError={(msg) => alert(`error: ${msg}`)}
+                          showSuccess={(msg) => alert(`success: ${msg}`)}
+                          onAskMore={handleAskMore}
+                          isGeneratingAskMore={isGeneratingAskMore}
+                          currentUserId={currentUserId}
+                          db={db}
+                          appId={appId}
+                          onBackToRoleSelection={() => window.history.back()}
+                          onSignOut={() => signOut()}
+                          connectionError={connectionError}
+                          retryCount={retryCount}
+                          auth={auth}
+                        />
+                      ) : (
+                        <Navigate to="/role" replace />
+                      );
+                    }}
+                  </GameDeepLink>
                 }
               />
 
@@ -345,34 +369,45 @@ export default function App() {
               <Route
                 path="/score/:gameId"
                 element={
-                  shouldShowGameRoute(gameId, gameData, connectionError) &&
-                  (gameData?.status === "scoring" ||
-                    gameData?.status === "ended" ||
-                    connectionError) ? (
-                    <Scoreboard
-                      game={gameData}
-                      players={gamePlayers}
-                      isAdmin={
-                        isAdmin ||
-                        gameData?.adminId === currentUserId ||
-                        gameData?.createdBy === currentUserId
-                      }
-                      onBackToLogin={handleBackToLogin}
-                      onPlayAgain={handleAdminLogin}
-                      currentUserId={currentUserId}
-                      showSuccess={(msg) => alert(`success: ${msg}`)}
-                      showError={(msg) => alert(`error: ${msg}`)}
-                      db={db}
-                      appId={appId}
-                      onBackToRoleSelection={() => window.history.back()}
-                      onSignOut={() => signOut()}
-                      connectionError={connectionError}
-                      retryCount={retryCount}
-                      auth={auth}
-                    />
-                  ) : (
-                    <Navigate to="/role" replace />
-                  )
+                  <GameDeepLink>
+                    {({ urlGameId }) => {
+                      return shouldShowGameRoute(
+                        gameId,
+                        gameData,
+                        connectionError,
+                        null,
+                        urlGameId
+                      ) &&
+                        (gameData?.status === "scoring" ||
+                          gameData?.status === "ended" ||
+                          connectionError) &&
+                        (gameId === urlGameId || !gameId) ? (
+                        <Scoreboard
+                          game={gameData}
+                          players={gamePlayers}
+                          isAdmin={
+                            isAdmin ||
+                            gameData?.adminId === currentUserId ||
+                            gameData?.createdBy === currentUserId
+                          }
+                          onBackToLogin={handleBackToLogin}
+                          onPlayAgain={handleAdminLogin}
+                          currentUserId={currentUserId}
+                          showSuccess={(msg) => alert(`success: ${msg}`)}
+                          showError={(msg) => alert(`error: ${msg}`)}
+                          db={db}
+                          appId={appId}
+                          onBackToRoleSelection={() => window.history.back()}
+                          onSignOut={() => signOut()}
+                          connectionError={connectionError}
+                          retryCount={retryCount}
+                          auth={auth}
+                        />
+                      ) : (
+                        <Navigate to="/role" replace />
+                      );
+                    }}
+                  </GameDeepLink>
                 }
               />
 
