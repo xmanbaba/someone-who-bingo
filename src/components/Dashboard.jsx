@@ -453,6 +453,67 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
     averageScore: 0,
   });
 
+  // Improved timestamp extraction function
+  const extractTimestamp = (gameData) => {
+    const timestampFields = [
+      'createdAt',
+      'startTime', 
+      'scoringEndTime',
+      'endedAt'
+    ];
+
+    for (const field of timestampFields) {
+      if (gameData[field]) {
+        try {
+          // Handle Firestore Timestamp objects
+          if (typeof gameData[field].toMillis === "function") {
+            const timestamp = gameData[field].toMillis();
+            // Validate timestamp is reasonable (not in future, not before 2020)
+            const now = Date.now();
+            const year2020 = new Date('2020-01-01').getTime();
+            if (timestamp <= now && timestamp >= year2020) {
+              return timestamp;
+            }
+          } 
+          // Handle Date objects
+          else if (typeof gameData[field].toDate === "function") {
+            const timestamp = gameData[field].toDate().getTime();
+            const now = Date.now();
+            const year2020 = new Date('2020-01-01').getTime();
+            if (timestamp <= now && timestamp >= year2020) {
+              return timestamp;
+            }
+          } 
+          // Handle numeric timestamps
+          else if (typeof gameData[field] === "number") {
+            // Check if it's a reasonable timestamp
+            const now = Date.now();
+            const year2020 = new Date('2020-01-01').getTime();
+            if (gameData[field] <= now && gameData[field] >= year2020) {
+              return gameData[field];
+            }
+          } 
+          // Handle Firestore timestamp objects with seconds
+          else if (gameData[field].seconds) {
+            const timestamp = gameData[field].seconds * 1000 + 
+              (gameData[field].nanoseconds || 0) / 1000000;
+            const now = Date.now();
+            const year2020 = new Date('2020-01-01').getTime();
+            if (timestamp <= now && timestamp >= year2020) {
+              return timestamp;
+            }
+          }
+        } catch (error) {
+          console.warn(`Error processing timestamp field ${field}:`, error);
+        }
+      }
+    }
+
+    // If no valid timestamp found, return null instead of current time
+    console.warn('No valid timestamp found for game:', gameData.id || 'unknown');
+    return null;
+  };
+
   useEffect(() => {
     if (!currentUserId || !db) return;
 
@@ -514,8 +575,23 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
         const gameResults = await Promise.all(gameProcessingPromises);
         const userGames = gameResults.filter(Boolean);
 
-        // Sort by most recent first
-        userGames.sort((a, b) => b.playedAt - a.playedAt);
+        // Sort by most recent first, but handle null timestamps
+        userGames.sort((a, b) => {
+          // If both have valid timestamps, sort normally
+          if (a.playedAt && b.playedAt) {
+            return b.playedAt - a.playedAt;
+          }
+          // If only one has a valid timestamp, prioritize it
+          if (a.playedAt && !b.playedAt) {
+            return -1;
+          }
+          if (!a.playedAt && b.playedAt) {
+            return 1;
+          }
+          // If neither has a valid timestamp, sort by game ID
+          return (b.id || '').localeCompare(a.id || '');
+        });
+
         setGameHistory(userGames);
         setFilteredGames(userGames);
 
@@ -596,33 +672,8 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
           playersWithScores.find((p) => p.id === currentUserId)?.totalScore ||
           0;
 
-        // Better timestamp handling
-        let playedAt = Date.now();
-        const timestampFields = ["startTime", "createdAt", "scoringEndTime"];
-
-        for (const field of timestampFields) {
-          if (gameData[field]) {
-            try {
-              if (typeof gameData[field].toMillis === "function") {
-                playedAt = gameData[field].toMillis();
-                break;
-              } else if (typeof gameData[field].toDate === "function") {
-                playedAt = gameData[field].toDate().getTime();
-                break;
-              } else if (typeof gameData[field] === "number") {
-                playedAt = gameData[field];
-                break;
-              } else if (gameData[field].seconds) {
-                playedAt =
-                  gameData[field].seconds * 1000 +
-                  (gameData[field].nanoseconds || 0) / 1000000;
-                break;
-              }
-            } catch (error) {
-              console.warn(`Error processing timestamp field ${field}:`, error);
-            }
-          }
-        }
+        // Use improved timestamp extraction
+        const playedAt = extractTimestamp(gameData);
 
         return {
           id: gameDoc.id,
@@ -633,7 +684,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
           rank: userRank > 0 ? userRank : null,
           totalPlayers: allPlayers.length,
           userScore: userScore,
-          playedAt: playedAt,
+          playedAt: playedAt, // This can now be null for invalid timestamps
           isWin: userRank === 1 && allPlayers.length > 1,
         };
       } catch (error) {
@@ -669,10 +720,15 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
   };
 
   const formatDate = (timestamp) => {
-    if (!timestamp) return "Unknown date";
+    if (!timestamp) {
+      return "Unknown date";
+    }
+    
     try {
       const date = new Date(timestamp);
-      if (isNaN(date.getTime())) return "Unknown date";
+      if (isNaN(date.getTime())) {
+        return "Unknown date";
+      }
 
       return date.toLocaleDateString("en-US", {
         year: "numeric",

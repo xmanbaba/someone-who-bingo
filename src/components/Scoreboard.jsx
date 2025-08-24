@@ -1,4 +1,4 @@
-// Scoreboard.tsx
+// Scoreboard.jsx
 import React, { useState } from "react";
 import { doc, updateDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
@@ -35,19 +35,24 @@ const PlayerBoardModal = ({
   }
 
   const handleMark = async (idx, mark) => {
-    const updated = [...(player.checkedSquares || [])];
-    const entry = updated.find((s) => s.index === idx);
-    if (entry) {
-      entry.correct = mark;
-      await updateDoc(
-        doc(
-          db,
-          `artifacts/${appId}/public/data/bingoGames/${game.id}/players`,
-          player.id
-        ),
-        { checkedSquares: updated }
-      );
-      onToggleCorrect();
+    try {
+      const updated = [...(player.checkedSquares || [])];
+      const entry = updated.find((s) => s.index === idx);
+      if (entry) {
+        entry.correct = mark;
+        await updateDoc(
+          doc(
+            db,
+            `artifacts/${appId}/public/data/bingoGames/${game.id}/players`,
+            player.id
+          ),
+          { checkedSquares: updated }
+        );
+        onToggleCorrect();
+      }
+    } catch (error) {
+      console.error("Error updating player score:", error);
+      alert("Failed to update score. Please try again.");
     }
   };
 
@@ -94,13 +99,13 @@ const PlayerBoardModal = ({
                     <div className="flex justify-center gap-1 mt-1">
                       <button
                         onClick={() => handleMark(sq.index, true)}
-                        className="px-2 py-0.5 bg-green-600 text-white rounded text-xs"
+                        className="px-2 py-0.5 bg-green-600 text-white rounded text-xs hover:bg-green-700"
                       >
                         ✓
                       </button>
                       <button
                         onClick={() => handleMark(sq.index, false)}
-                        className="px-2 py-0.5 bg-red-600 text-white rounded text-xs"
+                        className="px-2 py-0.5 bg-red-600 text-white rounded text-xs hover:bg-red-700"
                       >
                         ✗
                       </button>
@@ -113,7 +118,7 @@ const PlayerBoardModal = ({
         </div>
         <button
           onClick={onClose}
-          className="mt-4 w-full py-2 bg-blue-600 text-white rounded"
+          className="mt-4 w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
         >
           Close
         </button>
@@ -132,9 +137,93 @@ const Scoreboard = ({
   currentUserId,
   db,
   appId,
+  connectionError,
 }) => {
   const navigate = useNavigate();
   const [openBoard, setOpenBoard] = useState(null);
+
+  // Add null checks for game and players
+  if (!game) {
+    return (
+      <div className="space-y-6 p-4 sm:p-6 md:p-8 bg-white rounded-3xl shadow-xl max-w-5xl mx-auto border-2 border-purple-300">
+        <div className="text-center">
+          {connectionError ? (
+            <>
+              <h2 className="text-2xl font-bold text-red-600 mb-4">
+                ⚠️ Connection Error
+              </h2>
+              <p className="text-gray-600 mb-4">
+                Unable to load game data. Please check your connection and try
+                again.
+              </p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              >
+                Retry
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="animate-spin h-12 w-12 text-purple-500 mx-auto mb-4">
+                <svg fill="none" viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+              </div>
+              <p className="text-gray-600">Loading game results...</p>
+            </>
+          )}
+        </div>
+        <div className="flex justify-center mt-6">
+          <button
+            onClick={() => {
+              onBackToLogin();
+              navigate("/role");
+            }}
+            className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+          >
+            🚪 Back to Menu
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!players || players.length === 0) {
+    return (
+      <div className="space-y-6 p-4 sm:p-6 md:p-8 bg-white rounded-3xl shadow-xl max-w-5xl mx-auto border-2 border-purple-300">
+        <h2 className="text-3xl md:text-4xl font-bold text-center text-purple-800">
+          🏁 Final Scoreboard
+        </h2>
+        <div className="text-center">
+          <p className="text-gray-600 text-lg mb-4">
+            No players found in this game.
+          </p>
+          <button
+            onClick={() => {
+              onBackToLogin();
+              navigate("/role");
+            }}
+            className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+          >
+            🚪 Back to Menu
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const computePlayerScore = (player, gameData) => {
     const filled = player?.checkedSquares?.length || 0;
@@ -148,7 +237,7 @@ const Scoreboard = ({
     const completionScore = (filled / totalSquares) * 40;
     const accuracyScore = filled === 0 ? 0 : (correct / filled) * 60;
 
-    // Enhanced time score calculation (same as main Scoreboard)
+    // Enhanced time score calculation
     let timeScore = Infinity;
 
     try {
@@ -233,7 +322,7 @@ const Scoreboard = ({
   const handleShareResults = async () => {
     try {
       // Mark the game as having a public scoreboard
-      if (isAdmin) {
+      if (isAdmin && db && appId) {
         await updateDoc(
           doc(db, `artifacts/${appId}/public/data/bingoGames`, game.id),
           { publicScoreboard: true }
@@ -289,9 +378,9 @@ const Scoreboard = ({
         <div className="bg-purple-50 p-4 rounded-xl text-center text-sm sm:text-base">
           <p>
             Game Code: <strong>{game.id}</strong> | Industry:{" "}
-            <strong>{game.industry}</strong> | Grid:{" "}
+            <strong>{game.industry || "Unknown"}</strong> | Grid:{" "}
             <strong>
-              {game.gridSize}×{game.gridSize}
+              {game.gridSize || 5}×{game.gridSize || 5}
             </strong>
           </p>
           <div className="flex justify-center mt-3">
