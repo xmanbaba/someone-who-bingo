@@ -365,23 +365,20 @@ export default function App() {
                 }
               />
 
-              {/* Scoreboard - authenticated users */}
+              {/* Scoreboard - authenticated users - FIXED ROUTING */}
               <Route
                 path="/score/:gameId"
                 element={
                   <GameDeepLink>
                     {({ urlGameId }) => {
-                      return shouldShowGameRoute(
-                        gameId,
-                        gameData,
-                        connectionError,
-                        null,
-                        urlGameId
-                      ) &&
-                        (gameData?.status === "scoring" ||
-                          gameData?.status === "ended" ||
-                          connectionError) &&
-                        (gameId === urlGameId || !gameId) ? (
+                      // Check if user is authenticated
+                      if (!currentUserId) {
+                        return <Navigate to="/auth" replace />;
+                      }
+
+                      // Always allow access to scoreboards for authenticated users
+                      // This fixes the issue where direct links weren't working
+                      return (
                         <Scoreboard
                           game={gameData}
                           players={gamePlayers}
@@ -403,8 +400,6 @@ export default function App() {
                           retryCount={retryCount}
                           auth={auth}
                         />
-                      ) : (
-                        <Navigate to="/role" replace />
                       );
                     }}
                   </GameDeepLink>

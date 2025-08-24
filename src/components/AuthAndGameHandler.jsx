@@ -872,6 +872,69 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
       </div>
     );
   }
+  // Add this method to AuthAndGameHandler to handle direct game access
+  const handleDirectGameAccess = async (gameIdFromUrl) => {
+    if (!db || !currentUserId || !gameIdFromUrl) return false;
+
+    try {
+      console.log(`Attempting to load game directly: ${gameIdFromUrl}`);
+
+      // Check if game exists
+      const gameDocRef = doc(
+        db,
+        `artifacts/${appId}/public/data/bingoGames`,
+        gameIdFromUrl
+      );
+      const gameDocSnap = await getDoc(gameDocRef);
+
+      if (!gameDocSnap.exists()) {
+        console.log(`Game ${gameIdFromUrl} not found`);
+        return false;
+      }
+
+      const gameDataFound = { id: gameDocSnap.id, ...gameDocSnap.data() };
+
+      // Check if user has access to this game (either as admin or player)
+      const isAdmin =
+        gameDataFound.createdBy === currentUserId ||
+        gameDataFound.adminId === currentUserId;
+
+      let hasPlayerAccess = false;
+      try {
+        const playerDocRef = doc(
+          db,
+          `artifacts/${appId}/public/data/bingoGames/${gameIdFromUrl}/players`,
+          currentUserId
+        );
+        const playerDocSnap = await getDoc(playerDocRef);
+        hasPlayerAccess = playerDocSnap.exists();
+      } catch (error) {
+        console.warn(
+          `Error checking player access for game ${gameIdFromUrl}:`,
+          error
+        );
+      }
+
+      if (!isAdmin && !hasPlayerAccess) {
+        console.log(
+          `User ${currentUserId} has no access to game ${gameIdFromUrl}`
+        );
+        return false;
+      }
+
+      // Set up game state and listeners
+      console.log(`Loading game ${gameIdFromUrl} for user ${currentUserId}`);
+      setGameId(gameIdFromUrl);
+      setGameData(gameDataFound);
+      setIsAdmin(isAdmin);
+
+      // Set up listeners will be triggered by the gameId change
+      return true;
+    } catch (error) {
+      console.error(`Error loading game ${gameIdFromUrl}:`, error);
+      return false;
+    }
+  };
 
   return (
     <>
@@ -906,6 +969,7 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
         handleAskMore,
         handleBackToLogin,
         handleAutoJoinFromUrl,
+        handleDirectGameAccess,
         auth,
         createUserWithEmailAndPassword: (email, password) =>
           createUserWithEmailAndPassword(auth, email, password),

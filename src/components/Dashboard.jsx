@@ -45,19 +45,24 @@ const PlayerBoardModal = ({
   }
 
   const handleMark = async (idx, mark) => {
-    const updated = [...(player.checkedSquares || [])];
-    const entry = updated.find((s) => s.index === idx);
-    if (entry) {
-      entry.correct = mark;
-      await updateDoc(
-        doc(
-          db,
-          `artifacts/${appId}/public/data/bingoGames/${game.id}/players`,
-          player.id
-        ),
-        { checkedSquares: updated }
-      );
-      onToggleCorrect();
+    try {
+      const updated = [...(player.checkedSquares || [])];
+      const entry = updated.find((s) => s.index === idx);
+      if (entry) {
+        entry.correct = mark;
+        await updateDoc(
+          doc(
+            db,
+            `artifacts/${appId}/public/data/bingoGames/${game.id}/players`,
+            player.id
+          ),
+          { checkedSquares: updated }
+        );
+        onToggleCorrect();
+      }
+    } catch (error) {
+      console.error("Error updating player score:", error);
+      alert("Failed to update score. Please try again.");
     }
   };
 
@@ -104,13 +109,13 @@ const PlayerBoardModal = ({
                     <div className="flex justify-center gap-1 mt-1">
                       <button
                         onClick={() => handleMark(sq.index, true)}
-                        className="px-2 py-0.5 bg-green-600 text-white rounded text-xs"
+                        className="px-2 py-0.5 bg-green-600 text-white rounded text-xs hover:bg-green-700"
                       >
                         ✓
                       </button>
                       <button
                         onClick={() => handleMark(sq.index, false)}
-                        className="px-2 py-0.5 bg-red-600 text-white rounded text-xs"
+                        className="px-2 py-0.5 bg-red-600 text-white rounded text-xs hover:bg-red-700"
                       >
                         ✗
                       </button>
@@ -123,7 +128,7 @@ const PlayerBoardModal = ({
         </div>
         <button
           onClick={onClose}
-          className="mt-4 w-full py-2 bg-blue-600 text-white rounded"
+          className="mt-4 w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
         >
           Close
         </button>
@@ -137,14 +142,44 @@ const ScoreboardModal = ({
   show,
   onClose,
   game,
-  players,
+  initialPlayers,
   isAdmin,
   currentUserId,
   db,
   appId,
 }) => {
   const [openBoard, setOpenBoard] = useState(null);
-  const [playersData, setPlayersData] = useState(players);
+  const [playersData, setPlayersData] = useState(initialPlayers || []);
+  const [loading, setLoading] = useState(false);
+
+  // Refresh players data when modal opens
+  useEffect(() => {
+    if (show && game && db) {
+      refreshPlayersData();
+    }
+  }, [show, game?.id]);
+
+  const refreshPlayersData = async () => {
+    if (!game || !db) return;
+
+    setLoading(true);
+    try {
+      const playersRef = collection(
+        db,
+        `artifacts/${appId}/public/data/bingoGames/${game.id}/players`
+      );
+      const playersSnapshot = await getDocs(playersRef);
+      const freshPlayers = playersSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setPlayersData(freshPlayers);
+    } catch (error) {
+      console.error("Error refreshing players data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!show || !game) return null;
 
@@ -297,12 +332,21 @@ const ScoreboardModal = ({
               <h2 className="text-2xl md:text-3xl font-bold text-purple-800">
                 🏁 Game Scoreboard
               </h2>
-              <button
-                onClick={onClose}
-                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
-              >
-                ×
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={refreshPlayersData}
+                  disabled={loading}
+                  className="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600 disabled:opacity-50"
+                >
+                  {loading ? "Refreshing..." : "🔄"}
+                </button>
+                <button
+                  onClick={onClose}
+                  className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+                >
+                  ×
+                </button>
+              </div>
             </div>
 
             {/* Game Info */}
@@ -385,8 +429,7 @@ const ScoreboardModal = ({
         appId={appId}
         onToggleCorrect={() => {
           // Refresh players data when scores change
-          // This is a simplified approach - in a real app you'd want to re-fetch the data
-          setPlayersData([...playersData]);
+          refreshPlayersData();
         }}
       />
     </>
@@ -523,6 +566,12 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
           id: doc.id,
           ...doc.data(),
         }));
+
+        // Only process if there are actual players (this helps filter out phantom games)
+        if (allPlayers.length === 0 && !isAdmin) {
+          console.log(`Skipping game ${gameDoc.id} - no players found`);
+          return null;
+        }
 
         // Calculate scores and ranking
         const playersWithScores = allPlayers
@@ -1042,7 +1091,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
         show={selectedGame}
         onClose={() => setSelectedGame(null)}
         game={selectedGame}
-        players={selectedGamePlayers}
+        initialPlayers={selectedGamePlayers}
         isAdmin={selectedGame?.userRole === "admin"}
         currentUserId={currentUserId}
         db={db}
