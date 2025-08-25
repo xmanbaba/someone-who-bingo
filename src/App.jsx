@@ -98,12 +98,18 @@ const WaitingRoomHandler = ({
     navigate,
   ]);
 
-  // Handle navigation based on game status
+  // Handle navigation based on game status - FIXED: More specific navigation logic
   useEffect(() => {
     if (gameData && gameId === urlGameId) {
+      console.log(
+        `WaitingRoom: Game status changed to ${gameData.status} for game ${gameId}`
+      );
+
       if (gameData.status === "playing") {
+        console.log(`Navigating from waiting to play/${gameId}`);
         navigate(`/play/${gameId}`, { replace: true });
       } else if (gameData.status === "scoring" || gameData.status === "ended") {
+        console.log(`Navigating from waiting to score/${gameId}`);
         navigate(`/score/${gameId}`, { replace: true });
       }
     }
@@ -221,20 +227,36 @@ const PlayingGameHandler = ({
   retryCount,
   navigate,
 }) => {
-  // Handle navigation based on game status changes
+  // Handle navigation based on game status changes - FIXED: Enhanced navigation logic
   useEffect(() => {
     if (gameData && gameId === urlGameId) {
+      console.log(
+        `PlayingGame: Game status changed to ${gameData.status} for game ${gameId}`
+      );
+
       if (gameData.status === "scoring" || gameData.status === "ended") {
+        console.log(`Navigating from playing to score/${gameId}`);
+        // Use replace to prevent back navigation to playing screen
         navigate(`/score/${gameId}`, { replace: true });
       }
+      // Don't navigate away if status is still "playing" - stay on current screen
     }
   }, [gameData?.status, gameId, urlGameId, navigate]);
 
-  // Check if we should show this route
+  // FIXED: More permissive conditions for showing the playing game
+  // Show if we're supposed to be here OR if there's a connection error (for resilience)
   const shouldShow =
-    (gameData?.status === "playing" && gameId === urlGameId) || connectionError;
+    gameData &&
+    (gameData.status === "playing" || connectionError || !gameData.status) && // Handle cases where status might be temporarily undefined
+    gameId === urlGameId;
 
-  if (!shouldShow) {
+  if (!shouldShow && gameData) {
+    // Only redirect if we have valid game data and are clearly not supposed to be here
+    if (gameData.status === "waiting") {
+      return <Navigate to={`/waiting/${gameId}`} replace />;
+    } else if (gameData.status === "scoring" || gameData.status === "ended") {
+      return <Navigate to={`/score/${gameId}`} replace />;
+    }
     return <Navigate to="/role" replace />;
   }
 
@@ -249,6 +271,68 @@ const PlayingGameHandler = ({
       onAskMore={handleAskMore}
       isGeneratingAskMore={isGeneratingAskMore}
       currentUserId={currentUserId}
+      db={db}
+      appId={appId}
+      onBackToRoleSelection={() => window.history.back()}
+      onSignOut={() => signOut()}
+      connectionError={connectionError}
+      retryCount={retryCount}
+      auth={auth}
+    />
+  );
+};
+
+// NEW: ScoreboardHandler to handle scoreboard-specific navigation
+const ScoreboardHandler = ({
+  urlGameId,
+  gameId,
+  gameData,
+  connectionError,
+  gamePlayers,
+  isAdmin,
+  currentUserId,
+  handleBackToLogin,
+  handleAdminLogin,
+  db,
+  appId,
+  signOut,
+  auth,
+  retryCount,
+  navigate,
+}) => {
+  // Allow access to scoreboard if:
+  // 1. Game is in scoring/ended state, OR
+  // 2. There's a connection error (for resilience), OR
+  // 3. We don't have game data yet (loading state)
+  const shouldShow =
+    !gameData ||
+    connectionError ||
+    gameData.status === "scoring" ||
+    gameData.status === "ended";
+
+  // If we have game data and it's not in a scoreboard-appropriate state, redirect
+  if (gameData && !connectionError) {
+    if (gameData.status === "waiting") {
+      return <Navigate to={`/waiting/${gameId}`} replace />;
+    } else if (gameData.status === "playing") {
+      return <Navigate to={`/play/${gameId}`} replace />;
+    }
+  }
+
+  return (
+    <Scoreboard
+      game={gameData}
+      players={gamePlayers}
+      isAdmin={
+        isAdmin ||
+        gameData?.adminId === currentUserId ||
+        gameData?.createdBy === currentUserId
+      }
+      onBackToLogin={handleBackToLogin}
+      onPlayAgain={handleAdminLogin}
+      currentUserId={currentUserId}
+      showSuccess={(msg) => alert(`success: ${msg}`)}
+      showError={(msg) => alert(`error: ${msg}`)}
       db={db}
       appId={appId}
       onBackToRoleSelection={() => window.history.back()}
@@ -499,39 +583,35 @@ export default function App() {
                 }
               />
 
-              {/* Scoreboard - authenticated users */}
+              {/* FIXED: Scoreboard - authenticated users */}
               <Route
                 path="/score/:gameId"
                 element={
                   <GameDeepLink>
-                    {({ urlGameId }) => {
+                    {({ urlGameId, navigate }) => {
                       // Check if user is authenticated
                       if (!currentUserId) {
                         return <Navigate to="/auth" replace />;
                       }
 
-                      // Always allow access to scoreboards for authenticated users
+                      // Use dedicated ScoreboardHandler
                       return (
-                        <Scoreboard
-                          game={gameData}
-                          players={gamePlayers}
-                          isAdmin={
-                            isAdmin ||
-                            gameData?.adminId === currentUserId ||
-                            gameData?.createdBy === currentUserId
-                          }
-                          onBackToLogin={handleBackToLogin}
-                          onPlayAgain={handleAdminLogin}
+                        <ScoreboardHandler
+                          urlGameId={urlGameId}
+                          navigate={navigate}
+                          gameId={gameId}
+                          gameData={gameData}
+                          connectionError={connectionError}
+                          gamePlayers={gamePlayers}
+                          isAdmin={isAdmin}
                           currentUserId={currentUserId}
-                          showSuccess={(msg) => alert(`success: ${msg}`)}
-                          showError={(msg) => alert(`error: ${msg}`)}
+                          handleBackToLogin={handleBackToLogin}
+                          handleAdminLogin={handleAdminLogin}
                           db={db}
                           appId={appId}
-                          onBackToRoleSelection={() => window.history.back()}
-                          onSignOut={() => signOut()}
-                          connectionError={connectionError}
-                          retryCount={retryCount}
+                          signOut={signOut}
                           auth={auth}
+                          retryCount={retryCount}
                         />
                       );
                     }}
