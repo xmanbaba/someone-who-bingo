@@ -60,13 +60,13 @@ const GameDeepLink = ({ children }) => {
 };
 
 // Fixed WaitingRoomHandler - separate component to handle auto-join logic
-const WaitingRoomHandler = ({ 
-  urlGameId, 
-  navigate, 
-  currentUserId, 
-  gameId, 
-  gameData, 
-  connectionError, 
+const WaitingRoomHandler = ({
+  urlGameId,
+  navigate,
+  currentUserId,
+  gameId,
+  gameData,
+  connectionError,
   handleAutoJoinFromUrl,
   isAdmin,
   gamePlayers,
@@ -77,7 +77,7 @@ const WaitingRoomHandler = ({
   handleBackToLogin,
   signOut,
   auth,
-  retryCount
+  retryCount,
 }) => {
   // Auto-join logic for deep links - hooks always called
   useEffect(() => {
@@ -89,7 +89,14 @@ const WaitingRoomHandler = ({
     ) {
       handleAutoJoinFromUrl(urlGameId, navigate);
     }
-  }, [currentUserId, urlGameId, gameId, connectionError, handleAutoJoinFromUrl, navigate]);
+  }, [
+    currentUserId,
+    urlGameId,
+    gameId,
+    connectionError,
+    handleAutoJoinFromUrl,
+    navigate,
+  ]);
 
   // Handle navigation based on game status
   useEffect(() => {
@@ -137,9 +144,7 @@ const WaitingRoomHandler = ({
     return (
       <div className="flex items-center justify-center min-h-screen bg-blue-50">
         <div className="text-center space-y-4">
-          <div className="text-red-600 font-bold text-xl">
-            Connection Issue
-          </div>
+          <div className="text-red-600 font-bold text-xl">Connection Issue</div>
           <div className="text-gray-600">
             Reconnecting... (Attempt {retryCount}/3)
           </div>
@@ -198,25 +203,36 @@ const WaitingRoomHandler = ({
 };
 
 // Fixed PlayingGameHandler
-const PlayingGameHandler = ({ 
-  urlGameId, 
-  gameId, 
-  gameData, 
-  connectionError, 
-  playerData, 
-  gamePlayers, 
-  handleFinishGame, 
-  handleAskMore, 
-  isGeneratingAskMore, 
-  currentUserId, 
-  db, 
-  appId, 
-  signOut, 
+const PlayingGameHandler = ({
+  urlGameId,
+  gameId,
+  gameData,
+  connectionError,
+  playerData,
+  gamePlayers,
+  handleFinishGame,
+  handleAskMore,
+  isGeneratingAskMore,
+  currentUserId,
+  db,
+  appId,
+  signOut,
   auth,
-  retryCount
+  retryCount,
+  navigate,
 }) => {
+  // Handle navigation based on game status changes
+  useEffect(() => {
+    if (gameData && gameId === urlGameId) {
+      if (gameData.status === "scoring" || gameData.status === "ended") {
+        navigate(`/score/${gameId}`, { replace: true });
+      }
+    }
+  }, [gameData?.status, gameId, urlGameId, navigate]);
+
   // Check if we should show this route
-  const shouldShow = (gameData?.status === "playing" && gameId === urlGameId) || connectionError;
+  const shouldShow =
+    (gameData?.status === "playing" && gameId === urlGameId) || connectionError;
 
   if (!shouldShow) {
     return <Navigate to="/role" replace />;
@@ -287,7 +303,27 @@ export default function App() {
               {/* Public routes */}
               <Route path="/" element={<Homepage />} />
 
-              {/* Deep link route for sharing game joins */}
+              {/* FIXED: Direct game join route (/:gameId) for autojoin functionality */}
+              <Route
+                path="/:gameId"
+                element={
+                  <GameDeepLink>
+                    {({ urlGameId }) => {
+                      // If user is not authenticated, redirect to auth with game info
+                      if (!currentUserId) {
+                        return (
+                          <Navigate to={`/auth?join=${urlGameId}`} replace />
+                        );
+                      }
+
+                      // If user is authenticated, auto-join the game
+                      return <Navigate to={`/waiting/${urlGameId}`} replace />;
+                    }}
+                  </GameDeepLink>
+                }
+              />
+
+              {/* Legacy deep link route for sharing game joins */}
               <Route
                 path="/game/:gameId"
                 element={
@@ -439,9 +475,10 @@ export default function App() {
                 path="/play/:gameId"
                 element={
                   <GameDeepLink>
-                    {({ urlGameId }) => (
+                    {({ urlGameId, navigate }) => (
                       <PlayingGameHandler
                         urlGameId={urlGameId}
+                        navigate={navigate}
                         gameId={gameId}
                         gameData={gameData}
                         connectionError={connectionError}
@@ -507,7 +544,7 @@ export default function App() {
                 path="/public-score/:appId/:gameId"
                 element={<PublicScoreboard />}
               />
-              
+
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
