@@ -140,16 +140,14 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
     };
   }, []);
 
-  // Auto-navigation when game status changes + Time tracking
+  // Handle player time tracking when game status changes - REMOVED NAVIGATION
   useEffect(() => {
     if (gameId && gameData?.status && currentUserId) {
-      const currentPath = location.pathname;
-
       // Save current route to session
-      saveSession({ [SESSION_KEYS.LAST_ROUTE]: currentPath });
+      saveSession({ [SESSION_KEYS.LAST_ROUTE]: location.pathname });
 
       // Handle player time tracking when game starts
-      if (gameData.status === "playing" && !currentPath.includes("/play/")) {
+      if (gameData.status === "playing") {
         // Record start time for player when they enter playing state
         const startTime = Date.now();
         saveSession({ [SESSION_KEYS.PLAYER_START_TIME]: startTime });
@@ -167,12 +165,7 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
             console.warn("Failed to update player start time:", error);
           });
         }
-
-        navigate(`/play/${gameId}`, { replace: true });
-      } else if (
-        (gameData.status === "scoring" || gameData.status === "ended") &&
-        !currentPath.includes("/score/")
-      ) {
+      } else if (gameData.status === "scoring" || gameData.status === "ended") {
         // Record end time for player when game ends
         const endTime = Date.now();
         const startTime =
@@ -195,14 +188,11 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
             console.warn("Failed to update player end time:", error);
           });
         }
-
-        navigate(`/score/${gameId}`, { replace: true });
       }
     }
   }, [
     gameData?.status,
     gameId,
-    navigate,
     location.pathname,
     saveSession,
     currentUserId,
@@ -872,6 +862,7 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
       </div>
     );
   }
+
   // Add this method to AuthAndGameHandler to handle direct game access
   const handleDirectGameAccess = async (gameIdFromUrl) => {
     if (!db || !currentUserId || !gameIdFromUrl) return false;
