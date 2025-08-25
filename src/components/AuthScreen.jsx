@@ -4,6 +4,7 @@ import ForgotPassword from "./ForgotPassword";
 
 // AuthScreen Component
 const AuthScreen = ({
+  auth,
   showMessageModal,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
