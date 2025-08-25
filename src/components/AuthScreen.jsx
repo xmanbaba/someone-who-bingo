@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import ForgotPassword from "./ForgotPassword";
 
 // AuthScreen Component
 const AuthScreen = ({
@@ -16,6 +17,7 @@ const AuthScreen = ({
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [gameToJoin, setGameToJoin] = useState(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   // Check for URL parameters on mount
   useEffect(() => {
@@ -28,61 +30,123 @@ const AuthScreen = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Input validation
+    if (!email.trim() || !password.trim()) {
+      showMessageModal("Please enter both email and password.", "error");
+      return;
+    }
+
     setLoading(true);
     try {
       if (isLoginMode) {
-        await signInWithEmailAndPassword(email, password);
+        const userCredential = await signInWithEmailAndPassword(
+          email.trim(),
+          password
+        );
+        console.log("Login successful:", userCredential.user.uid);
         showMessageModal("Logged in!", "success");
       } else {
-        await createUserWithEmailAndPassword(email, password);
+        const userCredential = await createUserWithEmailAndPassword(
+          email.trim(),
+          password
+        );
+        console.log("Account created:", userCredential.user.uid);
         showMessageModal("Account created!", "success");
       }
 
-      // After successful auth, handle game joining if needed
-      if (gameToJoin) {
-        navigate(`/waiting/${gameToJoin}`);
-      } else {
-        navigate("/role");
-      }
+      // Small delay to ensure auth state is updated
+      setTimeout(() => {
+        if (gameToJoin) {
+          navigate(`/waiting/${gameToJoin}`);
+        } else {
+          navigate("/role");
+        }
+      }, 100);
     } catch (error) {
+      console.error("Authentication error:", error);
       let msg = "Authentication failed.";
-      switch (error.code) {
-        case "auth/invalid-email":
-          msg = "Invalid email.";
-          break;
-        case "auth/user-not-found":
-        case "auth/wrong-password":
-          msg = "Wrong email or password.";
-          break;
-        case "auth/email-already-in-use":
-          msg = "Email already registered.";
-          break;
-        case "auth/weak-password":
-          msg = "≥ 6 characters required.";
-          break;
-        default:
-          msg = error.message;
+
+      // Handle specific Firebase auth errors
+      if (error.code) {
+        switch (error.code) {
+          case "auth/invalid-email":
+            msg = "Invalid email format.";
+            break;
+          case "auth/user-not-found":
+            msg = "No account found with this email.";
+            break;
+          case "auth/wrong-password":
+            msg = "Incorrect password.";
+            break;
+          case "auth/invalid-credential":
+            msg = "Invalid email or password.";
+            break;
+          case "auth/email-already-in-use":
+            msg = "Email already registered. Try logging in instead.";
+            break;
+          case "auth/weak-password":
+            msg = "Password must be at least 6 characters.";
+            break;
+          case "auth/too-many-requests":
+            msg = "Too many failed attempts. Please try again later.";
+            break;
+          case "auth/network-request-failed":
+            msg = "Network error. Please check your connection.";
+            break;
+          default:
+            msg = error.message || "Authentication failed. Please try again.";
+        }
       }
+
       showMessageModal(msg, "error");
     } finally {
       setLoading(false);
     }
   };
 
+  // Show forgot password screen if requested
+  if (showForgotPassword) {
+    return (
+      <ForgotPassword
+        auth={auth}
+        onBack={() => setShowForgotPassword(false)}
+        showMessageModal={showMessageModal}
+      />
+    );
+  }
+
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      await signInWithGoogle();
+      const userCredential = await signInWithGoogle();
+      console.log("Google sign-in successful:", userCredential?.user?.uid);
       showMessageModal("Signed in with Google!", "success");
 
-      // After successful auth, handle game joining if needed
-      if (gameToJoin) {
-        navigate(`/waiting/${gameToJoin}`);
-      } else {
-        navigate("/role");
-      }
+      // Small delay to ensure auth state is updated
+      setTimeout(() => {
+        if (gameToJoin) {
+          navigate(`/waiting/${gameToJoin}`);
+        } else {
+          navigate("/role");
+        }
+      }, 100);
     } catch (error) {
-      showMessageModal(`Google sign-in failed: ${error.message}`, "error");
+      console.error("Google sign-in error:", error);
+
+      if (error.code === "auth/popup-closed-by-user") {
+        showMessageModal("Google sign-in cancelled.", "info");
+      } else if (error.code === "auth/popup-blocked") {
+        showMessageModal(
+          "Popup was blocked. Please allow popups and try again.",
+          "error"
+        );
+      } else {
+        showMessageModal(
+          `Google sign-in failed: ${error.message || "Unknown error"}`,
+          "error"
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -140,6 +204,7 @@ const AuthScreen = ({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
           <div>
@@ -157,12 +222,29 @@ const AuthScreen = ({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              disabled={loading}
+              minLength={6}
             />
           </div>
+
+          {/* Forgot Password Link - only show in login mode */}
+          {isLoginMode && (
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(true)}
+                className="text-sm text-indigo-600 hover:text-indigo-800 underline"
+                disabled={loading}
+              >
+                Forgot your password?
+              </button>
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 sm:py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-transform transform hover:scale-105 disabled:opacity-60"
+            className="w-full py-2.5 sm:py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-transform transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loading ? (
               <svg
@@ -198,6 +280,7 @@ const AuthScreen = ({
           <button
             onClick={() => setIsLoginMode(!isLoginMode)}
             className="text-indigo-600 font-bold underline"
+            disabled={loading}
           >
             {isLoginMode ? "Sign Up" : "Log In"}
           </button>
@@ -212,7 +295,7 @@ const AuthScreen = ({
         <button
           onClick={handleGoogleSignIn}
           disabled={loading}
-          className="w-full flex items-center justify-center py-2.5 sm:py-3 bg-white border border-gray-300 text-gray-700 font-semibold rounded-xl shadow hover:bg-gray-100 transition-transform transform hover:scale-105"
+          className="w-full flex items-center justify-center py-2.5 sm:py-3 bg-white border border-gray-300 text-gray-700 font-semibold rounded-xl shadow hover:bg-gray-100 transition-transform transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <img
             src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"

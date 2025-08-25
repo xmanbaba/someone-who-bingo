@@ -30,7 +30,6 @@ const PlayingGame = ({
   const timerRef = useRef(null);
   const timerStartedRef = useRef(false);
 
-  // Handle case where game or player data might be temporarily null during connection issues
   const getPlayerBoard = (questions, gridSize, checkedSquares) => {
     if (!questions || !gridSize) return [];
 
@@ -78,16 +77,12 @@ const PlayingGame = ({
         setTimeRemaining(nowRemaining);
         if (nowRemaining <= 0) {
           clearInterval(timerRef.current);
-          onFinishGame(true); // Only end game when timer runs out
+          onFinishGame(true);
         }
       }, 1000);
     }
     return () => timerRef.current && clearInterval(timerRef.current);
   }, [game?.status, game?.startTime, game?.timerDuration, onFinishGame]);
-
-  // REMOVED: Auto-submit effect that was ending the game
-  // The game should NOT end when players complete their cards
-  // Only when timer runs out or admin ends it
 
   const formatTime = (ms) => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -171,10 +166,6 @@ const PlayingGame = ({
         ),
         { isSubmitted: true, submissionTime: Date.now() }
       );
-      // showSuccess(
-      //   "Card submitted! Game continues until time runs out or admin ends it."
-      // );
-      // REMOVED: onFinishGame(false) - submitting shouldn't end the game
     } catch (e) {
       console.error("Error submitting card:", e);
       showError("Failed to submit card.");
@@ -183,200 +174,193 @@ const PlayingGame = ({
 
   const handleAdminEndGame = () => onFinishGame(false);
 
-  // Show loading/connection state when data is missing
-  if (!game || !player) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-blue-50">
-        <div className="text-center p-8">
-          {connectionError ? (
-            <div className="space-y-4">
-              <div className="text-red-600 font-bold text-xl">
-                Connection Issue
-              </div>
-              <div className="text-gray-600">
-                Reconnecting... (Attempt {retryCount}/3)
-              </div>
-              <div className="animate-spin h-8 w-8 text-blue-500 mx-auto">
-                <svg fill="none" viewBox="0 0 24 24">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="animate-spin h-8 w-8 text-blue-500 mx-auto">
-                <svg fill="none" viewBox="0 0 24 24">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-              </div>
-              <div className="text-gray-700 text-xl font-semibold">
-                Loading Game...
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   /* ---------- RENDER ---------- */
   return (
     <div className="space-y-8 p-4 sm:p-6 bg-white rounded-3xl shadow-2xl max-w-6xl mx-auto border-4 border-blue-300">
-      {/* Connection status indicator */}
-      {connectionError && (
-        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
-          <strong>Connection Issue:</strong> Reconnecting... (Attempt{" "}
-          {retryCount}/3)
+      {/* Show loading/connection state when data is missing */}
+      {!game || !player ? (
+        <div className="flex items-center justify-center min-h-screen bg-blue-50 w-full">
+          <div className="text-center p-8">
+            {connectionError ? (
+              <div className="space-y-4">
+                <div className="text-red-600 font-bold text-xl">
+                  Connection Issue
+                </div>
+                <div className="text-gray-600">
+                  Reconnecting... (Attempt {retryCount}/3)
+                </div>
+                <div className="animate-spin h-8 w-8 text-blue-500 mx-auto">
+                  <svg fill="none" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="animate-spin h-8 w-8 text-blue-500 mx-auto">
+                  <svg fill="none" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                </div>
+                <div className="text-gray-700 text-xl font-semibold">
+                  Loading Game...
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      ) : (
+        <>
+          {/* Connection status indicator */}
+          {connectionError && (
+            <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
+              <strong>Connection Issue:</strong> Reconnecting... (Attempt{" "}
+              {retryCount}/3)
+            </div>
+          )}
 
-      <h2 className="text-3xl sm:text-4xl font-extrabold text-center text-blue-800">
-        🎮 Bingo Game
-      </h2>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-center text-blue-800">
+            🎮 Bingo Game
+          </h2>
 
-      {/* Timer & Controls */}
-      <div className="flex flex-col sm:flex-row justify-between items-center bg-blue-100 border border-blue-300 p-4 sm:p-5 rounded-xl">
-        <div className="text-lg sm:text-xl font-bold text-blue-700 flex items-center mb-3 sm:mb-0">
-          Time Left:{" "}
-          <span className="ml-2 text-2xl">{formatTime(timeRemaining)}</span>
-        </div>
+          {/* Timer & Controls */}
+          <div className="flex flex-col sm:flex-row justify-between items-center bg-blue-100 border border-blue-300 p-4 sm:p-5 rounded-xl">
+            <div className="text-lg sm:text-xl font-bold text-blue-700 flex items-center mb-3 sm:mb-0">
+              Time Left:{" "}
+              <span className="ml-2 text-2xl">{formatTime(timeRemaining)}</span>
+            </div>
 
-        {/* Admin End Game Button */}
-        {game.adminId === currentUserId && game.status === "playing" && (
-          <button
-            onClick={handleAdminEndGame}
-            className="bg-red-600 text-white px-4 py-2 rounded-lg shadow hover:bg-red-700"
-          >
-            🛑 End Game (Admin)
-          </button>
-        )}
+            {/* Admin End Game Button */}
+            {game.adminId === currentUserId && game.status === "playing" && (
+              <button
+                onClick={handleAdminEndGame}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg shadow hover:bg-red-700"
+              >
+                🛑 End Game (Admin)
+              </button>
+            )}
 
-        {/* Player Submit Button - doesn't end game */}
-        {!player?.isSubmitted && game.status === "playing" && (
-          <button
-            onClick={handleSubmitCard}
-            className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow hover:bg-purple-700"
-          >
-            📢 Submit Card
-          </button>
-        )}
-        {player?.isSubmitted && (
-          <span className="text-green-600 font-semibold">✅ Submitted</span>
-        )}
-      </div>
+            {/* Player Submit Button */}
+            {!player?.isSubmitted && game.status === "playing" && (
+              <button
+                onClick={handleSubmitCard}
+                className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow hover:bg-purple-700"
+              >
+                📢 Submit Card
+              </button>
+            )}
+            {player?.isSubmitted && (
+              <span className="text-green-600 font-semibold">✅ Submitted</span>
+            )}
+          </div>
 
-      {/* Game Status Info */}
-      {/* <div className="bg-yellow-50 border border-yellow-300 p-3 rounded-lg">
-        <p className="text-sm text-yellow-800">
-          <strong>Game continues until:</strong> Timer runs out OR Admin ends
-          the game. Submitting your card early doesn't end the game for
-          everyone!
-        </p>
-      </div> */}
-
-      {/* Grid */}
-      {game.gridSize && (
-        <div
-          className="grid gap-2"
-          style={{
-            gridTemplateColumns: `repeat(${game.gridSize}, minmax(0, 1fr))`,
-          }}
-        >
-          {playerBoard.map((square) => (
-            <button
-              key={square.index}
-              disabled={
-                player.isSubmitted ||
-                game.status !== "playing" ||
-                connectionError
-              }
-              onClick={() => openModal(square)}
-              className={`relative p-2 sm:p-3 text-xs sm:text-sm break-words rounded-md transition-all border ${
-                square.isChecked
-                  ? "bg-green-300 border-green-500 text-white"
-                  : "bg-white text-gray-800 border-gray-300 hover:bg-blue-100"
-              } ${
-                player.isSubmitted || connectionError
-                  ? "opacity-50 cursor-not-allowed"
-                  : ""
-              }`}
+          {/* Grid */}
+          {game.gridSize && (
+            <div
+              className="grid gap-2"
+              style={{
+                gridTemplateColumns: `repeat(${game.gridSize}, minmax(0, 1fr))`,
+              }}
             >
-              {square.question}
-              {square.isChecked && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-10 rounded-md">
-                  ✅
-                </div>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Other Players */}
-      <div className="mt-6">
-        <h3 className="text-xl font-bold mb-3">Other Players:</h3>
-        <ul className="space-y-2">
-          {gamePlayers
-            ?.filter((p) => p.id !== currentUserId)
-            .map((p) => (
-              <li key={p.id} className="p-3 bg-gray-100 rounded-md">
-                <div className="font-bold flex items-center justify-between">
-                  <span>{p.name}</span>
-                  {p.isSubmitted && (
-                    <span className="text-green-600 text-sm">✅ Submitted</span>
-                  )}
-                </div>
-                <div className="italic text-sm">"{p.icebreaker}"</div>
+              {playerBoard.map((square) => (
                 <button
-                  onClick={() => onAskMore(p)}
-                  disabled={isGeneratingAskMore || connectionError}
-                  className="text-purple-600 hover:underline mt-1 text-sm disabled:opacity-50"
+                  key={square.index}
+                  disabled={
+                    player.isSubmitted ||
+                    game.status !== "playing" ||
+                    connectionError
+                  }
+                  onClick={() => openModal(square)}
+                  className={`relative p-2 sm:p-3 text-xs sm:text-sm break-words rounded-md transition-all border ${
+                    square.isChecked
+                      ? "bg-green-300 border-green-500 text-white"
+                      : "bg-white text-gray-800 border-gray-300 hover:bg-blue-100"
+                  } ${
+                    player.isSubmitted || connectionError
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
+                  }`}
                 >
-                  {isGeneratingAskMore ? "…" : "✨ Ask More"}
+                  {square.question}
+                  {square.isChecked && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-10 rounded-md">
+                      ✅
+                    </div>
+                  )}
                 </button>
-              </li>
-            )) || []}
-        </ul>
-      </div>
+              ))}
+            </div>
+          )}
 
-      {/* Modal */}
-      <SquareDetailsModal
-        show={isModalOpen}
-        onClose={closeModal}
-        onSave={saveSquareChanges}
-        question={selectedSquare?.question}
-        currentNames={modalNames}
-        isChecked={modalChecked}
-        onToggleCheck={() => setModalChecked(!modalChecked)}
-        onAddName={addName}
-        onRemoveName={removeName}
-        nameInput={nameInput}
-        onNameInputChange={(e) => setNameInput(e.target.value)}
-      />
+          {/* Other Players */}
+          <div className="mt-6">
+            <h3 className="text-xl font-bold mb-3">Other Players:</h3>
+            <ul className="space-y-2">
+              {gamePlayers
+                ?.filter((p) => p.id !== currentUserId)
+                .map((p) => (
+                  <li key={p.id} className="p-3 bg-gray-100 rounded-md">
+                    <div className="font-bold flex items-center justify-between">
+                      <span>{p.name}</span>
+                      {p.isSubmitted && (
+                        <span className="text-green-600 text-sm">
+                          ✅ Submitted
+                        </span>
+                      )}
+                    </div>
+                    <div className="italic text-sm">"{p.icebreaker}"</div>
+                    <button
+                      onClick={() => onAskMore(p)}
+                      disabled={isGeneratingAskMore || connectionError}
+                      className="text-purple-600 hover:underline mt-1 text-sm disabled:opacity-50"
+                    >
+                      {isGeneratingAskMore ? "…" : "✨ Ask More"}
+                    </button>
+                  </li>
+                )) || []}
+            </ul>
+          </div>
+
+          {/* Modal */}
+          <SquareDetailsModal
+            show={isModalOpen}
+            onClose={closeModal}
+            onSave={saveSquareChanges}
+            question={selectedSquare?.question}
+            currentNames={modalNames}
+            isChecked={modalChecked}
+            onToggleCheck={() => setModalChecked(!modalChecked)}
+            onAddName={addName}
+            onRemoveName={removeName}
+            nameInput={nameInput}
+            onNameInputChange={(e) => setNameInput(e.target.value)}
+          />
+        </>
+      )}
     </div>
   );
 };

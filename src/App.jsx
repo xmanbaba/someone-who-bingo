@@ -140,7 +140,7 @@ export default function App() {
               {/* Public routes */}
               <Route path="/" element={<Homepage />} />
 
-              {/* Deep link route for sharing game joins */}
+              {/* FIXED: Deep link route for sharing game joins */}
               <Route
                 path="/game/:gameId"
                 element={
@@ -153,7 +153,51 @@ export default function App() {
                         );
                       }
 
-                      // If user is authenticated, auto-join the game
+                      // If user is authenticated, handle auto-join
+                      useEffect(() => {
+                        if (currentUserId && urlGameId) {
+                          handleAutoJoinFromUrl(urlGameId, navigate);
+                        }
+                      }, [currentUserId, urlGameId]);
+
+                      // Redirect to waiting room after auto-join is triggered
+                      return <Navigate to={`/waiting/${urlGameId}`} replace />;
+                    }}
+                  </GameDeepLink>
+                }
+              />
+
+              {/* FIXED: Simple gameId route for direct sharing */}
+              <Route
+                path="/:gameId"
+                element={
+                  <GameDeepLink>
+                    {({ urlGameId }) => {
+                      // Validate that this looks like a game ID (not a regular route)
+                      const isGameRoute = urlGameId && 
+                        urlGameId.length >= 3 && 
+                        /^[a-zA-Z0-9_-]+$/.test(urlGameId) &&
+                        !['auth', 'role', 'admin', 'player', 'dashboard', 'public-score'].includes(urlGameId);
+                      
+                      if (!isGameRoute) {
+                        return <Navigate to="/" replace />;
+                      }
+
+                      // If user is not authenticated, redirect to auth with game info
+                      if (!currentUserId) {
+                        return (
+                          <Navigate to={`/auth?join=${urlGameId}`} replace />
+                        );
+                      }
+
+                      // If user is authenticated, handle auto-join
+                      useEffect(() => {
+                        if (currentUserId && urlGameId) {
+                          handleAutoJoinFromUrl(urlGameId, navigate);
+                        }
+                      }, [currentUserId, urlGameId]);
+
+                      // Redirect to waiting room after auto-join is triggered
                       return <Navigate to={`/waiting/${urlGameId}`} replace />;
                     }}
                   </GameDeepLink>
@@ -271,6 +315,7 @@ export default function App() {
                           urlGameId !== gameId &&
                           !connectionError
                         ) {
+                          console.log(`Auto-joining game ${urlGameId} for user ${currentUserId}`);
                           handleAutoJoinFromUrl(urlGameId, navigate);
                         }
                       }, [currentUserId, urlGameId, gameId, connectionError]);
