@@ -75,7 +75,7 @@ const PlayerBoardModal = ({
         className="bg-white rounded-2xl p-3 sm:p-4 w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-center">
+        <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-center break-words">
           {player.name}'s Grid
         </h3>
         <div
@@ -87,7 +87,7 @@ const PlayerBoardModal = ({
           {grid.map((sq) => (
             <div
               key={sq.index}
-              className={`p-1 sm:p-2 text-xs rounded-md border text-center overflow-hidden ${
+              className={`p-1 sm:p-2 text-xs rounded-md border text-center overflow-hidden min-h-[60px] sm:min-h-[80px] ${
                 sq.isChecked
                   ? sq.correct === true
                     ? "bg-green-200 border-green-500"
@@ -97,25 +97,25 @@ const PlayerBoardModal = ({
                   : "bg-gray-100"
               }`}
             >
-              <div className="font-medium text-gray-800 text-[10px] sm:text-xs mb-1 max-h-12 sm:max-h-16 overflow-y-auto break-words">
+              <div className="font-medium text-gray-800 text-[10px] sm:text-xs mb-1 max-h-8 sm:max-h-12 overflow-y-auto break-words hyphens-auto">
                 {sq.question}
               </div>
               {sq.isChecked && (
                 <>
-                  <div className="text-gray-700 text-[8px] sm:text-[10px] max-h-8 sm:max-h-12 overflow-y-auto break-words">
+                  <div className="text-gray-700 text-[8px] sm:text-[10px] max-h-6 sm:max-h-8 overflow-y-auto break-words hyphens-auto">
                     {sq.names.join(", ")}
                   </div>
                   {isAdmin && (
-                    <div className="flex justify-center gap-1 mt-1">
+                    <div className="flex justify-center gap-0.5 sm:gap-1 mt-1">
                       <button
                         onClick={() => handleMark(sq.index, true)}
-                        className="px-1 sm:px-2 py-0.5 bg-green-600 text-white rounded text-[10px] sm:text-xs hover:bg-green-700"
+                        className="px-1 py-0.5 bg-green-600 text-white rounded text-[8px] sm:text-xs hover:bg-green-700 min-w-[16px] sm:min-w-[20px]"
                       >
                         ✓
                       </button>
                       <button
                         onClick={() => handleMark(sq.index, false)}
-                        className="px-1 sm:px-2 py-0.5 bg-red-600 text-white rounded text-[10px] sm:text-xs hover:bg-red-700"
+                        className="px-1 py-0.5 bg-red-600 text-white rounded text-[8px] sm:text-xs hover:bg-red-700 min-w-[16px] sm:min-w-[20px]"
                       >
                         ✗
                       </button>
@@ -329,20 +329,20 @@ const ScoreboardModal = ({
         >
           <div className="space-y-4 sm:space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-purple-800">
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-purple-800 break-words">
                 🏁 Game Scoreboard
               </h2>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 <button
                   onClick={refreshPlayersData}
                   disabled={loading}
-                  className="px-2 sm:px-3 py-1 bg-gray-500 text-white rounded text-xs sm:text-sm hover:bg-gray-600 disabled:opacity-50"
+                  className="px-2 sm:px-3 py-1 bg-gray-500 text-white rounded text-xs sm:text-sm hover:bg-gray-600 disabled:opacity-50 flex-shrink-0"
                 >
-                  {loading ? "Refreshing..." : "🔄"}
+                  {loading ? "..." : "🔄"}
                 </button>
                 <button
                   onClick={onClose}
-                  className="text-gray-500 hover:text-gray-700 text-xl sm:text-2xl font-bold"
+                  className="text-gray-500 hover:text-gray-700 text-xl sm:text-2xl font-bold flex-shrink-0"
                 >
                   ×
                 </button>
@@ -351,51 +351,59 @@ const ScoreboardModal = ({
 
             {/* Game Info */}
             <div className="bg-purple-50 p-3 sm:p-4 rounded-xl text-center text-xs sm:text-sm lg:text-base">
-              <div className="flex flex-col sm:flex-row justify-center items-center gap-2 sm:gap-4">
-                <span>
-                  Game Code: <strong>{game.id}</strong>
-                </span>
-                <span className="hidden sm:inline">|</span>
-                <span>
-                  Industry: <strong>{game.industry}</strong>
-                </span>
-                <span className="hidden sm:inline">|</span>
-                <span>
-                  Grid:{" "}
-                  <strong>
-                    {game.gridSize}×{game.gridSize}
-                  </strong>
-                </span>
-              </div>
-              <div className="flex justify-center mt-3">
-                <button
-                  onClick={handleShareResults}
-                  className="px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs sm:text-sm"
-                >
-                  🔗 Share Public Scoreboard
-                </button>
+              <div className="flex flex-col space-y-2">
+                <div className="flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-4 text-xs sm:text-sm">
+                  <span className="break-words">
+                    Code: <strong>{game.id}</strong>
+                  </span>
+                  <span className="hidden sm:inline">|</span>
+                  <span className="break-words">
+                    Industry: <strong>{game.industry}</strong>
+                  </span>
+                  <span className="hidden sm:inline">|</span>
+                  <span>
+                    Grid:{" "}
+                    <strong>
+                      {game.gridSize}×{game.gridSize}
+                    </strong>
+                  </span>
+                </div>
+                <div className="flex justify-center mt-2">
+                  <button
+                    onClick={handleShareResults}
+                    className="px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs sm:text-sm whitespace-nowrap"
+                  >
+                    🔗 Share Public Scoreboard
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* Player Table - Mobile Responsive */}
-            <div className="overflow-x-auto -mx-3 sm:mx-0">
-              <div className="min-w-full inline-block align-middle">
-                <div className="overflow-hidden border border-gray-300 rounded-xl">
-                  <table className="min-w-full text-xs sm:text-sm">
+            <div className="w-full overflow-hidden">
+              <div className="overflow-x-auto">
+                <div className="min-w-full">
+                  <table className="w-full text-xs sm:text-sm">
                     <thead className="bg-gray-100 text-gray-700 font-semibold">
                       <tr>
-                        <th className="px-2 sm:px-3 py-2 text-left">#</th>
-                        <th className="px-2 sm:px-3 py-2 text-left">Player</th>
-                        <th className="px-2 sm:px-3 py-2 text-right hidden sm:table-cell">
+                        <th className="px-2 py-2 text-left whitespace-nowrap">
+                          #
+                        </th>
+                        <th className="px-2 py-2 text-left min-w-[80px]">
+                          Player
+                        </th>
+                        <th className="px-2 py-2 text-right whitespace-nowrap hidden sm:table-cell">
                           Time
                         </th>
-                        <th className="px-2 sm:px-3 py-2 text-right hidden md:table-cell">
-                          Completion
+                        <th className="px-2 py-2 text-right whitespace-nowrap hidden md:table-cell">
+                          Complete
                         </th>
-                        <th className="px-2 sm:px-3 py-2 text-right hidden md:table-cell">
+                        <th className="px-2 py-2 text-right whitespace-nowrap hidden md:table-cell">
                           Accuracy
                         </th>
-                        <th className="px-2 sm:px-3 py-2 text-right">Total</th>
+                        <th className="px-2 py-2 text-right whitespace-nowrap">
+                          Total
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -407,40 +415,42 @@ const ScoreboardModal = ({
                           }`}
                           onClick={() => setOpenBoard(p)}
                         >
-                          <td className="px-2 sm:px-3 py-2">
-                            <div className="flex items-center">
+                          <td className="px-2 py-2">
+                            <div className="flex items-center whitespace-nowrap">
                               {i === 0 && <span className="mr-1">🥇</span>}
                               {i === 1 && <span className="mr-1">🥈</span>}
                               {i === 2 && <span className="mr-1">🥉</span>}
                               <span className="text-xs">{i + 1}</span>
                             </div>
                           </td>
-                          <td className="px-2 sm:px-3 py-2">
-                            <div className="truncate max-w-[120px] sm:max-w-none">
-                              {p.name}{" "}
+                          <td className="px-2 py-2 min-w-0">
+                            <div className="truncate max-w-[100px] sm:max-w-[120px] break-words">
+                              <span className="font-medium">{p.name}</span>
                               {p.id === currentUserId && (
-                                <span className="text-xs text-blue-600">
+                                <span className="text-[10px] sm:text-xs text-blue-600 block sm:inline sm:ml-1">
                                   (You)
                                 </span>
                               )}
                             </div>
                             {/* Mobile-only stats */}
-                            <div className="sm:hidden text-[10px] text-gray-500 mt-1">
-                              Time: {formatTime(p.timeScore)} | C:{" "}
-                              {p.completionScore.toFixed(0)} | A:{" "}
-                              {p.accuracyScore.toFixed(0)}
+                            <div className="sm:hidden text-[10px] text-gray-500 mt-1 break-words">
+                              <div>Time: {formatTime(p.timeScore)}</div>
+                              <div>
+                                C: {p.completionScore.toFixed(0)} | A:{" "}
+                                {p.accuracyScore.toFixed(0)}
+                              </div>
                             </div>
                           </td>
-                          <td className="px-2 sm:px-3 py-2 text-right hidden sm:table-cell">
+                          <td className="px-2 py-2 text-right hidden sm:table-cell whitespace-nowrap">
                             {formatTime(p.timeScore)}
                           </td>
-                          <td className="px-2 sm:px-3 py-2 text-right hidden md:table-cell">
+                          <td className="px-2 py-2 text-right hidden md:table-cell whitespace-nowrap">
                             {p.completionScore.toFixed(1)}
                           </td>
-                          <td className="px-2 sm:px-3 py-2 text-right hidden md:table-cell">
+                          <td className="px-2 py-2 text-right hidden md:table-cell whitespace-nowrap">
                             {p.accuracyScore.toFixed(1)}
                           </td>
-                          <td className="px-2 sm:px-3 py-2 text-right font-bold text-purple-700">
+                          <td className="px-2 py-2 text-right font-bold text-purple-700 whitespace-nowrap">
                             {p.aggregate.toFixed(1)}
                           </td>
                         </tr>
@@ -825,10 +835,10 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
         <div className="bg-white shadow-sm border-b border-gray-200">
           <div className="max-w-6xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <div className="flex items-center space-x-3 sm:space-x-4">
+              <div className="flex items-center space-x-3 sm:space-x-4 min-w-0">
                 <button
                   onClick={() => navigate("/role")}
-                  className="p-1.5 sm:p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors"
+                  className="p-1.5 sm:p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
                 >
                   <svg
                     className="w-5 h-5 sm:w-6 sm:h-6"
@@ -844,21 +854,21 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                     />
                   </svg>
                 </button>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
                   Dashboard
                 </h1>
               </div>
-              <div className="flex space-x-2 sm:space-x-3 w-full sm:w-auto">
+              <div className="flex space-x-2 sm:space-x-3 w-full sm:w-auto flex-shrink-0">
                 <button
                   onClick={() => navigate("/player/join")}
-                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm sm:text-base"
+                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm sm:text-base whitespace-nowrap"
                 >
                   <span className="sm:hidden">🎮 Join</span>
                   <span className="hidden sm:inline">🎮 Join Game</span>
                 </button>
                 <button
                   onClick={() => navigate("/admin/setup")}
-                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm sm:text-base"
+                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm sm:text-base whitespace-nowrap"
                 >
                   <span className="sm:hidden">➕ Create</span>
                   <span className="hidden sm:inline">➕ Create Game</span>
@@ -870,60 +880,68 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
 
         <div className="max-w-6xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
           {/* Stats Cards - Mobile Responsive */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
-            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-blue-200">
-              <div className="text-xl sm:text-2xl font-bold text-blue-600">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 mb-6 sm:mb-8">
+            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-blue-200 min-w-0">
+              <div className="text-xl sm:text-2xl font-bold text-blue-600 break-words">
                 {stats.totalGames}
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">
+              <div className="text-xs sm:text-sm text-gray-600 break-words">
                 Total Games
               </div>
             </div>
-            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-purple-200">
-              <div className="text-xl sm:text-2xl font-bold text-purple-600">
+            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-purple-200 min-w-0">
+              <div className="text-xl sm:text-2xl font-bold text-purple-600 break-words">
                 {stats.gamesAsAdmin}
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">As Admin</div>
+              <div className="text-xs sm:text-sm text-gray-600 break-words">
+                As Admin
+              </div>
             </div>
-            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-green-200 col-span-2 sm:col-span-1">
-              <div className="text-xl sm:text-2xl font-bold text-green-600">
+            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-green-200 col-span-2 sm:col-span-1 min-w-0">
+              <div className="text-xl sm:text-2xl font-bold text-green-600 break-words">
                 {stats.gamesAsPlayer}
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">As Player</div>
+              <div className="text-xs sm:text-sm text-gray-600 break-words">
+                As Player
+              </div>
             </div>
-            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-yellow-200">
-              <div className="text-xl sm:text-2xl font-bold text-yellow-600">
+            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-yellow-200 min-w-0">
+              <div className="text-xl sm:text-2xl font-bold text-yellow-600 break-words">
                 {stats.totalWins}
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">Wins</div>
+              <div className="text-xs sm:text-sm text-gray-600 break-words">
+                Wins
+              </div>
             </div>
-            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-indigo-200">
-              <div className="text-xl sm:text-2xl font-bold text-indigo-600">
+            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-indigo-200 min-w-0">
+              <div className="text-xl sm:text-2xl font-bold text-indigo-600 break-words">
                 {stats.averageScore}
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">Avg Score</div>
+              <div className="text-xs sm:text-sm text-gray-600 break-words">
+                Avg Score
+              </div>
             </div>
           </div>
 
           {/* Game History - Mobile Optimized */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200">
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 min-w-0 overflow-hidden">
             <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 truncate">
                   Game History
                 </h2>
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full sm:w-auto min-w-0">
                   <input
                     type="text"
                     placeholder="Search games..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base w-full sm:w-auto"
+                    className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base w-full sm:w-auto min-w-0"
                   />
                   {searchTerm && (
                     <button
                       onClick={() => setSearchTerm("")}
-                      className="text-gray-500 hover:text-gray-700 text-sm self-center sm:self-auto"
+                      className="text-gray-500 hover:text-gray-700 text-sm self-center sm:self-auto flex-shrink-0"
                     >
                       Clear
                     </button>
@@ -949,7 +967,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                         d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                       />
                     </svg>
-                    <p className="text-gray-500 text-base sm:text-lg">
+                    <p className="text-gray-500 text-base sm:text-lg break-words">
                       No games found matching "{searchTerm}"
                     </p>
                     <button
@@ -982,7 +1000,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                     </p>
                     <button
                       onClick={() => navigate("/role")}
-                      className="mt-4 px-4 sm:px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm sm:text-base"
+                      className="mt-4 px-4 sm:px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm sm:text-base whitespace-nowrap"
                     >
                       Play Your First Game
                     </button>
@@ -998,19 +1016,19 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                       className="px-4 sm:px-6 py-4 hover:bg-gray-50 transition-colors cursor-pointer"
                       onClick={() => handleGameClick(game)}
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-3 sm:space-y-0">
-                        <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-3 sm:space-y-0 min-w-0">
+                        <div className="flex-1 min-w-0 overflow-hidden">
                           {/* Status badges - Mobile first */}
                           <div className="flex flex-wrap items-center gap-2 mb-2">
                             <span
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                              className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getStatusColor(
                                 game.status
                               )}`}
                             >
                               {game.status}
                             </span>
                             <span
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
                                 game.userRole === "admin"
                                   ? "bg-purple-100 text-purple-800"
                                   : "bg-blue-100 text-blue-800"
@@ -1021,7 +1039,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                                 : "👤 Player"}
                             </span>
                             {game.rank && (
-                              <span className="flex items-center space-x-1">
+                              <span className="flex items-center space-x-1 whitespace-nowrap">
                                 {getRankBadge(game.rank, game.totalPlayers)}
                                 <span className="text-xs text-gray-600">
                                   {game.rank} of {game.totalPlayers}
@@ -1030,19 +1048,19 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                             )}
                           </div>
 
-                          <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">
+                          <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base break-words">
                             Game {game.id}
                           </h3>
 
-                          <div className="text-xs sm:text-sm text-gray-600 space-y-1">
-                            <div className="flex flex-wrap gap-x-4 gap-y-1">
-                              <span>
+                          <div className="text-xs sm:text-sm text-gray-600 space-y-1 min-w-0">
+                            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-1 sm:gap-x-4">
+                              <span className="break-words">
                                 Industry:{" "}
                                 <span className="font-medium">
                                   {game.industry || "Unknown"}
                                 </span>
                               </span>
-                              <span>
+                              <span className="whitespace-nowrap">
                                 Grid:{" "}
                                 <span className="font-medium">
                                   {game.gridSize || "Unknown"}×
@@ -1050,7 +1068,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                                 </span>
                               </span>
                             </div>
-                            <div>
+                            <div className="break-words">
                               Played:{" "}
                               <span className="font-medium">
                                 {formatDate(game.playedAt)}
@@ -1068,13 +1086,13 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                         </div>
 
                         {/* Action buttons - Mobile optimized */}
-                        <div className="flex flex-col sm:flex-col sm:items-end space-y-2 sm:ml-4">
+                        <div className="flex flex-col space-y-2 sm:ml-4 flex-shrink-0">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleGameClick(game);
                             }}
-                            className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-medium text-center sm:text-right"
+                            className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-medium text-left sm:text-right whitespace-nowrap"
                           >
                             View Scoreboard →
                           </button>
@@ -1084,7 +1102,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                                 e.stopPropagation();
                                 navigate(`/score/${game.id}`);
                               }}
-                              className="text-green-600 hover:text-green-800 text-xs sm:text-sm font-medium text-center sm:text-right"
+                              className="text-green-600 hover:text-green-800 text-xs sm:text-sm font-medium text-left sm:text-right whitespace-nowrap"
                             >
                               View Results →
                             </button>
@@ -1098,7 +1116,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                                   navigate(`/waiting/${game.id}`);
                                 else navigate(`/play/${game.id}`);
                               }}
-                              className="text-green-600 hover:text-green-800 text-xs sm:text-sm font-medium text-center sm:text-right"
+                              className="text-green-600 hover:text-green-800 text-xs sm:text-sm font-medium text-left sm:text-right whitespace-nowrap"
                             >
                               {game.status === "waiting"
                                 ? "Rejoin →"
@@ -1131,26 +1149,26 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                         </button>
 
                         {/* Page numbers - Responsive */}
-                        <div className="flex space-x-1">
+                        <div className="flex space-x-1 overflow-x-auto">
                           {Array.from(
-                            { length: Math.min(3, totalPages) },
+                            { length: Math.min(5, totalPages) },
                             (_, i) => {
                               let pageNumber;
-                              if (totalPages <= 3) {
+                              if (totalPages <= 5) {
                                 pageNumber = i + 1;
-                              } else if (currentPage <= 2) {
+                              } else if (currentPage <= 3) {
                                 pageNumber = i + 1;
-                              } else if (currentPage >= totalPages - 1) {
-                                pageNumber = totalPages - 2 + i;
+                              } else if (currentPage >= totalPages - 2) {
+                                pageNumber = totalPages - 4 + i;
                               } else {
-                                pageNumber = currentPage - 1 + i;
+                                pageNumber = currentPage - 2 + i;
                               }
 
                               return (
                                 <button
                                   key={pageNumber}
                                   onClick={() => setCurrentPage(pageNumber)}
-                                  className={`px-2 sm:px-3 py-1 border border-gray-300 rounded text-xs sm:text-sm ${
+                                  className={`px-2 sm:px-3 py-1 border border-gray-300 rounded text-xs sm:text-sm whitespace-nowrap ${
                                     currentPage === pageNumber
                                       ? "bg-blue-500 text-white border-blue-500"
                                       : "hover:bg-gray-50"
