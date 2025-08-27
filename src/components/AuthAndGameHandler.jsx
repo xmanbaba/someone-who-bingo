@@ -140,7 +140,10 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
     };
   }, []);
 
-  // Handle player time tracking when game status changes - REMOVED NAVIGATION
+  // Replace the existing useEffect that handles player time tracking (around lines 154-195)
+  // with this corrected version:
+
+  // Handle player time tracking when game status changes - FIXED TIMING ISSUE
   useEffect(() => {
     if (gameId && gameData?.status && currentUserId) {
       // Save current route to session
@@ -148,42 +151,54 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
 
       // Handle player time tracking when game starts
       if (gameData.status === "playing") {
-        // Record start time for player when they enter playing state
-        const startTime = Date.now();
-        saveSession({ [SESSION_KEYS.PLAYER_START_TIME]: startTime });
-
-        // Update player start time in database if not already set
+        // Only record start time if player doesn't already have one
+        // This prevents overwriting the actual start time when status changes
         if (db && playerData && !playerData.startTime) {
+          // Use the game's start time as the player's start time
+          // This ensures all players have the same reference point
+          const gameStartTime =
+            gameData.startTime?.toMillis?.() ||
+            gameData.startTime ||
+            Date.now();
+
           const playerDocRef = doc(
             db,
             `artifacts/${appId}/public/data/bingoGames/${gameId}/players`,
             currentUserId
           );
+
           updateDoc(playerDocRef, {
-            startTime: startTime,
+            startTime: gameStartTime,
           }).catch((error) => {
             console.warn("Failed to update player start time:", error);
           });
+
+          // Also save to session for backup
+          saveSession({ [SESSION_KEYS.PLAYER_START_TIME]: gameStartTime });
         }
       } else if (gameData.status === "scoring" || gameData.status === "ended") {
         // Record end time for player when game ends
-        const endTime = Date.now();
-        const startTime =
-          getSession(SESSION_KEYS.PLAYER_START_TIME) ||
-          playerData?.startTime ||
-          gameData.startTime?.toMillis?.() ||
-          gameData.startTime ||
-          endTime;
-
         if (db && playerData && !playerData.endTime) {
+          const endTime = Date.now();
+
+          // Get start time from player data first, then fallback to game start time
+          const startTime =
+            playerData.startTime?.toMillis?.() ||
+            playerData.startTime ||
+            getSession(SESSION_KEYS.PLAYER_START_TIME) ||
+            gameData.startTime?.toMillis?.() ||
+            gameData.startTime ||
+            endTime; // final fallback
+
           const playerDocRef = doc(
             db,
             `artifacts/${appId}/public/data/bingoGames/${gameId}/players`,
             currentUserId
           );
+
           updateDoc(playerDocRef, {
             endTime: endTime,
-            startTime: startTime, // Ensure start time is recorded
+            startTime: startTime, // Ensure start time is recorded if missing
           }).catch((error) => {
             console.warn("Failed to update player end time:", error);
           });

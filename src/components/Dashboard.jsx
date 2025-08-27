@@ -72,63 +72,69 @@ const PlayerBoardModal = ({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl p-3 sm:p-4 w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl p-3 sm:p-4 w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-center break-words">
           {player.name}'s Grid
         </h3>
-        <div
-          className="grid gap-1 sm:gap-2"
-          style={{
-            gridTemplateColumns: `repeat(${game.gridSize}, minmax(0, 1fr))`,
-          }}
-        >
-          {grid.map((sq) => (
-            <div
-              key={sq.index}
-              className={`p-1 sm:p-2 text-xs rounded-md border text-center overflow-hidden min-h-[60px] sm:min-h-[80px] ${
-                sq.isChecked
-                  ? sq.correct === true
-                    ? "bg-green-200 border-green-500"
-                    : sq.correct === false
-                    ? "bg-red-200 border-red-500"
-                    : "bg-yellow-200"
-                  : "bg-gray-100"
-              }`}
-            >
-              <div className="font-medium text-gray-800 text-[10px] sm:text-xs mb-1 max-h-8 sm:max-h-12 overflow-y-auto break-words hyphens-auto">
-                {sq.question}
-              </div>
-              {sq.isChecked && (
-                <>
-                  <div className="text-gray-700 text-[8px] sm:text-[10px] max-h-6 sm:max-h-8 overflow-y-auto break-words hyphens-auto">
-                    {sq.names.join(", ")}
+        <div className="flex-1 overflow-y-auto">
+          <div
+            className="grid gap-1 sm:gap-2"
+            style={{
+              gridTemplateColumns: `repeat(${game.gridSize}, minmax(0, 1fr))`,
+            }}
+          >
+            {grid.map((sq) => (
+              <div
+                key={sq.index}
+                className={`p-1 sm:p-2 text-xs rounded-md border text-center min-h-[60px] sm:min-h-[80px] flex flex-col ${
+                  sq.isChecked
+                    ? sq.correct === true
+                      ? "bg-green-200 border-green-500"
+                      : sq.correct === false
+                      ? "bg-red-200 border-red-500"
+                      : "bg-yellow-200"
+                    : "bg-gray-100"
+                }`}
+              >
+                <div className="font-medium text-gray-800 text-[10px] sm:text-xs mb-1 flex-1 overflow-hidden">
+                  <div className="break-words hyphens-auto line-clamp-3">
+                    {sq.question}
                   </div>
-                  {isAdmin && (
-                    <div className="flex justify-center gap-0.5 sm:gap-1 mt-1">
-                      <button
-                        onClick={() => handleMark(sq.index, true)}
-                        className="px-1 py-0.5 bg-green-600 text-white rounded text-[8px] sm:text-xs hover:bg-green-700 min-w-[16px] sm:min-w-[20px]"
-                      >
-                        ✓
-                      </button>
-                      <button
-                        onClick={() => handleMark(sq.index, false)}
-                        className="px-1 py-0.5 bg-red-600 text-white rounded text-[8px] sm:text-xs hover:bg-red-700 min-w-[16px] sm:min-w-[20px]"
-                      >
-                        ✗
-                      </button>
+                </div>
+                {sq.isChecked && (
+                  <>
+                    <div className="text-gray-700 text-[8px] sm:text-[10px] mb-1 overflow-hidden">
+                      <div className="break-words hyphens-auto line-clamp-2">
+                        {sq.names.join(", ")}
+                      </div>
                     </div>
-                  )}
-                </>
-              )}
-            </div>
-          ))}
+                    {isAdmin && (
+                      <div className="flex justify-center gap-0.5 sm:gap-1">
+                        <button
+                          onClick={() => handleMark(sq.index, true)}
+                          className="px-1 py-0.5 bg-green-600 text-white rounded text-[8px] sm:text-xs hover:bg-green-700 min-w-[16px] sm:min-w-[20px] flex-shrink-0"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          onClick={() => handleMark(sq.index, false)}
+                          className="px-1 py-0.5 bg-red-600 text-white rounded text-[8px] sm:text-xs hover:bg-red-700 min-w-[16px] sm:min-w-[20px] flex-shrink-0"
+                        >
+                          ✗
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
         <button
           onClick={onClose}
-          className="mt-3 sm:mt-4 w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm sm:text-base"
+          className="mt-3 sm:mt-4 w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm sm:text-base flex-shrink-0"
         >
           Close
         </button>
@@ -324,12 +330,12 @@ const ScoreboardModal = ({
         onClick={onClose}
       >
         <div
-          className="bg-white rounded-2xl p-3 sm:p-4 lg:p-6 w-full max-w-6xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto"
+          className="bg-white rounded-2xl p-3 sm:p-4 lg:p-6 w-full max-w-6xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="space-y-4 sm:space-y-6">
+          <div className="flex-shrink-0 space-y-4 sm:space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-purple-800 break-words">
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-purple-800 break-words min-w-0">
                 🏁 Game Scoreboard
               </h2>
               <div className="flex items-center gap-2 flex-shrink-0">
@@ -353,15 +359,16 @@ const ScoreboardModal = ({
             <div className="bg-purple-50 p-3 sm:p-4 rounded-xl text-center text-xs sm:text-sm lg:text-base">
               <div className="flex flex-col space-y-2">
                 <div className="flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-4 text-xs sm:text-sm">
-                  <span className="break-words">
-                    Code: <strong>{game.id}</strong>
+                  <span className="break-words truncate">
+                    Code: <strong className="break-all">{game.id}</strong>
                   </span>
                   <span className="hidden sm:inline">|</span>
-                  <span className="break-words">
-                    Industry: <strong>{game.industry}</strong>
+                  <span className="break-words truncate">
+                    Industry:{" "}
+                    <strong className="break-words">{game.industry}</strong>
                   </span>
                   <span className="hidden sm:inline">|</span>
-                  <span>
+                  <span className="whitespace-nowrap">
                     Grid:{" "}
                     <strong>
                       {game.gridSize}×{game.gridSize}
@@ -378,86 +385,86 @@ const ScoreboardModal = ({
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Player Table - Mobile Responsive */}
-            <div className="w-full overflow-hidden">
-              <div className="overflow-x-auto">
-                <div className="min-w-full">
-                  <table className="w-full text-xs sm:text-sm">
-                    <thead className="bg-gray-100 text-gray-700 font-semibold">
-                      <tr>
-                        <th className="px-2 py-2 text-left whitespace-nowrap">
-                          #
-                        </th>
-                        <th className="px-2 py-2 text-left min-w-[80px]">
-                          Player
-                        </th>
-                        <th className="px-2 py-2 text-right whitespace-nowrap hidden sm:table-cell">
-                          Time
-                        </th>
-                        <th className="px-2 py-2 text-right whitespace-nowrap hidden md:table-cell">
-                          Complete
-                        </th>
-                        <th className="px-2 py-2 text-right whitespace-nowrap hidden md:table-cell">
-                          Accuracy
-                        </th>
-                        <th className="px-2 py-2 text-right whitespace-nowrap">
-                          Total
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sortedPlayers.map((p, i) => (
-                        <tr
-                          key={p.id}
-                          className={`border-t hover:bg-gray-50 cursor-pointer ${
-                            p.id === currentUserId ? "bg-blue-50" : ""
-                          }`}
-                          onClick={() => setOpenBoard(p)}
-                        >
-                          <td className="px-2 py-2">
-                            <div className="flex items-center whitespace-nowrap">
-                              {i === 0 && <span className="mr-1">🥇</span>}
-                              {i === 1 && <span className="mr-1">🥈</span>}
-                              {i === 2 && <span className="mr-1">🥉</span>}
-                              <span className="text-xs">{i + 1}</span>
-                            </div>
-                          </td>
-                          <td className="px-2 py-2 min-w-0">
-                            <div className="truncate max-w-[100px] sm:max-w-[120px] break-words">
-                              <span className="font-medium">{p.name}</span>
-                              {p.id === currentUserId && (
-                                <span className="text-[10px] sm:text-xs text-blue-600 block sm:inline sm:ml-1">
-                                  (You)
-                                </span>
-                              )}
-                            </div>
+          {/* Player Table - Mobile Responsive with proper overflow handling */}
+          <div className="flex-1 overflow-hidden">
+            <div className="h-full overflow-auto">
+              <div className="min-w-full">
+                <table className="w-full text-xs sm:text-sm table-fixed">
+                  <thead className="bg-gray-100 text-gray-700 font-semibold sticky top-0">
+                    <tr>
+                      <th className="px-2 py-2 text-left w-12 sm:w-16">#</th>
+                      <th className="px-2 py-2 text-left min-w-0">Player</th>
+                      <th className="px-2 py-2 text-right w-16 sm:w-20 hidden sm:table-cell">
+                        Time
+                      </th>
+                      <th className="px-2 py-2 text-right w-20 hidden md:table-cell">
+                        Complete
+                      </th>
+                      <th className="px-2 py-2 text-right w-20 hidden md:table-cell">
+                        Accuracy
+                      </th>
+                      <th className="px-2 py-2 text-right w-16 sm:w-20">
+                        Total
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedPlayers.map((p, i) => (
+                      <tr
+                        key={p.id}
+                        className={`border-t hover:bg-gray-50 cursor-pointer ${
+                          p.id === currentUserId ? "bg-blue-50" : ""
+                        }`}
+                        onClick={() => setOpenBoard(p)}
+                      >
+                        <td className="px-2 py-2">
+                          <div className="flex items-center">
+                            {i === 0 && <span className="mr-1">🥇</span>}
+                            {i === 1 && <span className="mr-1">🥈</span>}
+                            {i === 2 && <span className="mr-1">🥉</span>}
+                            <span className="text-xs">{i + 1}</span>
+                          </div>
+                        </td>
+                        <td className="px-2 py-2 min-w-0">
+                          <div className="overflow-hidden">
+                            <div className="font-medium truncate">{p.name}</div>
+                            {p.id === currentUserId && (
+                              <span className="text-[10px] sm:text-xs text-blue-600 block">
+                                (You)
+                              </span>
+                            )}
                             {/* Mobile-only stats */}
-                            <div className="sm:hidden text-[10px] text-gray-500 mt-1 break-words">
-                              <div>Time: {formatTime(p.timeScore)}</div>
-                              <div>
+                            <div className="sm:hidden text-[10px] text-gray-500 mt-1">
+                              <div className="truncate">
+                                Time: {formatTime(p.timeScore)}
+                              </div>
+                              <div className="truncate">
                                 C: {p.completionScore.toFixed(0)} | A:{" "}
                                 {p.accuracyScore.toFixed(0)}
                               </div>
                             </div>
-                          </td>
-                          <td className="px-2 py-2 text-right hidden sm:table-cell whitespace-nowrap">
+                          </div>
+                        </td>
+                        <td className="px-2 py-2 text-right hidden sm:table-cell">
+                          <div className="truncate">
                             {formatTime(p.timeScore)}
-                          </td>
-                          <td className="px-2 py-2 text-right hidden md:table-cell whitespace-nowrap">
-                            {p.completionScore.toFixed(1)}
-                          </td>
-                          <td className="px-2 py-2 text-right hidden md:table-cell whitespace-nowrap">
-                            {p.accuracyScore.toFixed(1)}
-                          </td>
-                          <td className="px-2 py-2 text-right font-bold text-purple-700 whitespace-nowrap">
-                            {p.aggregate.toFixed(1)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                          </div>
+                        </td>
+                        <td className="px-2 py-2 text-right hidden md:table-cell">
+                          {p.completionScore.toFixed(1)}
+                        </td>
+                        <td className="px-2 py-2 text-right hidden md:table-cell">
+                          {p.accuracyScore.toFixed(1)}
+                        </td>
+                        <td className="px-2 py-2 text-right font-bold text-purple-700">
+                          {p.aggregate.toFixed(1)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -830,12 +837,12 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 overflow-x-hidden">
         {/* Header - Mobile Optimized */}
         <div className="bg-white shadow-sm border-b border-gray-200">
           <div className="max-w-6xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <div className="flex items-center space-x-3 sm:space-x-4 min-w-0">
+              <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
                 <button
                   onClick={() => navigate("/role")}
                   className="p-1.5 sm:p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
@@ -854,7 +861,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                     />
                   </svg>
                 </button>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate min-w-0">
                   Dashboard
                 </h1>
               </div>
@@ -881,40 +888,40 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
         <div className="max-w-6xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
           {/* Stats Cards - Mobile Responsive */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 mb-6 sm:mb-8">
-            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-blue-200 min-w-0">
-              <div className="text-xl sm:text-2xl font-bold text-blue-600 break-words">
+            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-blue-200 min-w-0 overflow-hidden">
+              <div className="text-xl sm:text-2xl font-bold text-blue-600 truncate">
                 {stats.totalGames}
               </div>
               <div className="text-xs sm:text-sm text-gray-600 break-words">
                 Total Games
               </div>
             </div>
-            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-purple-200 min-w-0">
-              <div className="text-xl sm:text-2xl font-bold text-purple-600 break-words">
+            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-purple-200 min-w-0 overflow-hidden">
+              <div className="text-xl sm:text-2xl font-bold text-purple-600 truncate">
                 {stats.gamesAsAdmin}
               </div>
               <div className="text-xs sm:text-sm text-gray-600 break-words">
                 As Admin
               </div>
             </div>
-            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-green-200 col-span-2 sm:col-span-1 min-w-0">
-              <div className="text-xl sm:text-2xl font-bold text-green-600 break-words">
+            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-green-200 col-span-2 sm:col-span-1 min-w-0 overflow-hidden">
+              <div className="text-xl sm:text-2xl font-bold text-green-600 truncate">
                 {stats.gamesAsPlayer}
               </div>
               <div className="text-xs sm:text-sm text-gray-600 break-words">
                 As Player
               </div>
             </div>
-            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-yellow-200 min-w-0">
-              <div className="text-xl sm:text-2xl font-bold text-yellow-600 break-words">
+            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-yellow-200 min-w-0 overflow-hidden">
+              <div className="text-xl sm:text-2xl font-bold text-yellow-600 truncate">
                 {stats.totalWins}
               </div>
               <div className="text-xs sm:text-sm text-gray-600 break-words">
                 Wins
               </div>
             </div>
-            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-indigo-200 min-w-0">
-              <div className="text-xl sm:text-2xl font-bold text-indigo-600 break-words">
+            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-indigo-200 min-w-0 overflow-hidden">
+              <div className="text-xl sm:text-2xl font-bold text-indigo-600 truncate">
                 {stats.averageScore}
               </div>
               <div className="text-xs sm:text-sm text-gray-600 break-words">
@@ -927,7 +934,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
           <div className="bg-white rounded-xl shadow-lg border border-gray-200 min-w-0 overflow-hidden">
             <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 truncate">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 truncate min-w-0">
                   Game History
                 </h2>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full sm:w-auto min-w-0">
@@ -936,7 +943,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                     placeholder="Search games..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base w-full sm:w-auto min-w-0"
+                    className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base w-full sm:w-auto min-w-0 max-w-full"
                   />
                   {searchTerm && (
                     <button
@@ -1016,10 +1023,10 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                       className="px-4 sm:px-6 py-4 hover:bg-gray-50 transition-colors cursor-pointer"
                       onClick={() => handleGameClick(game)}
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-3 sm:space-y-0 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-3 sm:space-y-0 min-w-0 overflow-hidden">
                         <div className="flex-1 min-w-0 overflow-hidden">
                           {/* Status badges - Mobile first */}
-                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <div className="flex flex-wrap items-center gap-2 mb-2 overflow-hidden">
                             <span
                               className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getStatusColor(
                                 game.status
@@ -1048,13 +1055,13 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                             )}
                           </div>
 
-                          <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base break-words">
+                          <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base break-all">
                             Game {game.id}
                           </h3>
 
-                          <div className="text-xs sm:text-sm text-gray-600 space-y-1 min-w-0">
+                          <div className="text-xs sm:text-sm text-gray-600 space-y-1 min-w-0 overflow-hidden">
                             <div className="flex flex-col sm:flex-row sm:flex-wrap gap-1 sm:gap-x-4">
-                              <span className="break-words">
+                              <span className="break-words truncate">
                                 Industry:{" "}
                                 <span className="font-medium">
                                   {game.industry || "Unknown"}
@@ -1068,7 +1075,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                                 </span>
                               </span>
                             </div>
-                            <div className="break-words">
+                            <div className="break-words truncate">
                               Played:{" "}
                               <span className="font-medium">
                                 {formatDate(game.playedAt)}
@@ -1086,7 +1093,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                         </div>
 
                         {/* Action buttons - Mobile optimized */}
-                        <div className="flex flex-col space-y-2 sm:ml-4 flex-shrink-0">
+                        <div className="flex flex-col space-y-2 sm:ml-4 flex-shrink-0 min-w-0">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1133,16 +1140,16 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                 {totalPages > 1 && (
                   <div className="px-4 sm:px-6 py-4 border-t border-gray-200">
                     <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
-                      <div className="text-xs sm:text-sm text-gray-700 order-2 sm:order-1">
+                      <div className="text-xs sm:text-sm text-gray-700 order-2 sm:order-1 text-center sm:text-left">
                         Showing {startIndex + 1} to{" "}
                         {Math.min(endIndex, filteredGames.length)} of{" "}
                         {filteredGames.length} games
                       </div>
-                      <div className="flex items-center space-x-1 sm:space-x-2 order-1 sm:order-2">
+                      <div className="flex items-center space-x-1 sm:space-x-2 order-1 sm:order-2 overflow-x-auto max-w-full">
                         <button
                           onClick={() => setCurrentPage(currentPage - 1)}
                           disabled={currentPage === 1}
-                          className="px-2 sm:px-3 py-1 border border-gray-300 rounded text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                          className="px-2 sm:px-3 py-1 border border-gray-300 rounded text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 flex-shrink-0"
                         >
                           <span className="sm:hidden">‹</span>
                           <span className="hidden sm:inline">Previous</span>
@@ -1168,7 +1175,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                                 <button
                                   key={pageNumber}
                                   onClick={() => setCurrentPage(pageNumber)}
-                                  className={`px-2 sm:px-3 py-1 border border-gray-300 rounded text-xs sm:text-sm whitespace-nowrap ${
+                                  className={`px-2 sm:px-3 py-1 border border-gray-300 rounded text-xs sm:text-sm whitespace-nowrap flex-shrink-0 ${
                                     currentPage === pageNumber
                                       ? "bg-blue-500 text-white border-blue-500"
                                       : "hover:bg-gray-50"
@@ -1184,7 +1191,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                         <button
                           onClick={() => setCurrentPage(currentPage + 1)}
                           disabled={currentPage === totalPages}
-                          className="px-2 sm:px-3 py-1 border border-gray-300 rounded text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                          className="px-2 sm:px-3 py-1 border border-gray-300 rounded text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 flex-shrink-0"
                         >
                           <span className="sm:hidden">›</span>
                           <span className="hidden sm:inline">Next</span>
