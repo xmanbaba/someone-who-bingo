@@ -13,7 +13,7 @@ import {
 
 const ITEMS_PER_PAGE = 10;
 
-// Player Board Modal Component
+// Player Board Modal Component - Mobile Optimized
 const PlayerBoardModal = ({
   show,
   onClose,
@@ -68,18 +68,18 @@ const PlayerBoardModal = ({
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-2 sm:p-4"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl p-4 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl p-3 sm:p-4 w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-xl font-bold mb-4 text-center">
+        <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-center">
           {player.name}'s Grid
         </h3>
         <div
-          className="grid gap-2"
+          className="grid gap-1 sm:gap-2"
           style={{
             gridTemplateColumns: `repeat(${game.gridSize}, minmax(0, 1fr))`,
           }}
@@ -87,7 +87,7 @@ const PlayerBoardModal = ({
           {grid.map((sq) => (
             <div
               key={sq.index}
-              className={`p-2 text-xs rounded-md border text-center overflow-hidden ${
+              className={`p-1 sm:p-2 text-xs rounded-md border text-center overflow-hidden ${
                 sq.isChecked
                   ? sq.correct === true
                     ? "bg-green-200 border-green-500"
@@ -97,25 +97,25 @@ const PlayerBoardModal = ({
                   : "bg-gray-100"
               }`}
             >
-              <div className="font-medium text-gray-800 text-xs mb-1 max-h-16 overflow-y-auto break-words">
+              <div className="font-medium text-gray-800 text-[10px] sm:text-xs mb-1 max-h-12 sm:max-h-16 overflow-y-auto break-words">
                 {sq.question}
               </div>
               {sq.isChecked && (
                 <>
-                  <div className="text-gray-700 text-[10px] max-h-12 overflow-y-auto break-words">
+                  <div className="text-gray-700 text-[8px] sm:text-[10px] max-h-8 sm:max-h-12 overflow-y-auto break-words">
                     {sq.names.join(", ")}
                   </div>
                   {isAdmin && (
                     <div className="flex justify-center gap-1 mt-1">
                       <button
                         onClick={() => handleMark(sq.index, true)}
-                        className="px-2 py-0.5 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                        className="px-1 sm:px-2 py-0.5 bg-green-600 text-white rounded text-[10px] sm:text-xs hover:bg-green-700"
                       >
                         ✓
                       </button>
                       <button
                         onClick={() => handleMark(sq.index, false)}
-                        className="px-2 py-0.5 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+                        className="px-1 sm:px-2 py-0.5 bg-red-600 text-white rounded text-[10px] sm:text-xs hover:bg-red-700"
                       >
                         ✗
                       </button>
@@ -128,7 +128,7 @@ const PlayerBoardModal = ({
         </div>
         <button
           onClick={onClose}
-          className="mt-4 w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          className="mt-3 sm:mt-4 w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm sm:text-base"
         >
           Close
         </button>
@@ -137,7 +137,7 @@ const PlayerBoardModal = ({
   );
 };
 
-// Enhanced Scoreboard Modal
+// Enhanced Scoreboard Modal - Mobile Optimized
 const ScoreboardModal = ({
   show,
   onClose,
@@ -320,29 +320,29 @@ const ScoreboardModal = ({
   return (
     <>
       <div
-        className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-40 p-4"
+        className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-40 p-2 sm:p-4"
         onClick={onClose}
       >
         <div
-          className="bg-white rounded-2xl p-4 sm:p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto"
+          className="bg-white rounded-2xl p-3 sm:p-4 lg:p-6 w-full max-w-6xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl md:text-3xl font-bold text-purple-800">
+          <div className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-purple-800">
                 🏁 Game Scoreboard
               </h2>
               <div className="flex items-center gap-2">
                 <button
                   onClick={refreshPlayersData}
                   disabled={loading}
-                  className="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600 disabled:opacity-50"
+                  className="px-2 sm:px-3 py-1 bg-gray-500 text-white rounded text-xs sm:text-sm hover:bg-gray-600 disabled:opacity-50"
                 >
                   {loading ? "Refreshing..." : "🔄"}
                 </button>
                 <button
                   onClick={onClose}
-                  className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+                  className="text-gray-500 hover:text-gray-700 text-xl sm:text-2xl font-bold"
                 >
                   ×
                 </button>
@@ -350,69 +350,105 @@ const ScoreboardModal = ({
             </div>
 
             {/* Game Info */}
-            <div className="bg-purple-50 p-4 rounded-xl text-center text-sm sm:text-base">
-              <p>
-                Game Code: <strong>{game.id}</strong> | Industry:{" "}
-                <strong>{game.industry}</strong> | Grid:{" "}
-                <strong>
-                  {game.gridSize}×{game.gridSize}
-                </strong>
-              </p>
+            <div className="bg-purple-50 p-3 sm:p-4 rounded-xl text-center text-xs sm:text-sm lg:text-base">
+              <div className="flex flex-col sm:flex-row justify-center items-center gap-2 sm:gap-4">
+                <span>
+                  Game Code: <strong>{game.id}</strong>
+                </span>
+                <span className="hidden sm:inline">|</span>
+                <span>
+                  Industry: <strong>{game.industry}</strong>
+                </span>
+                <span className="hidden sm:inline">|</span>
+                <span>
+                  Grid:{" "}
+                  <strong>
+                    {game.gridSize}×{game.gridSize}
+                  </strong>
+                </span>
+              </div>
               <div className="flex justify-center mt-3">
                 <button
                   onClick={handleShareResults}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
+                  className="px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs sm:text-sm"
                 >
                   🔗 Share Public Scoreboard
                 </button>
               </div>
             </div>
 
-            {/* Player Table */}
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm border border-gray-300 rounded-xl overflow-hidden">
-                <thead className="bg-gray-100 text-gray-700 font-semibold">
-                  <tr>
-                    <th className="px-3 py-2 text-left">#</th>
-                    <th className="px-3 py-2 text-left">Player</th>
-                    <th className="px-3 py-2 text-right">Time</th>
-                    <th className="px-3 py-2 text-right">Completion</th>
-                    <th className="px-3 py-2 text-right">Accuracy</th>
-                    <th className="px-3 py-2 text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedPlayers.map((p, i) => (
-                    <tr
-                      key={p.id}
-                      className={`border-t hover:bg-gray-50 cursor-pointer ${
-                        p.id === currentUserId ? "bg-blue-50" : ""
-                      }`}
-                      onClick={() => setOpenBoard(p)}
-                    >
-                      <td className="px-3 py-2">
-                        {i === 0 && "🥇"} {i === 1 && "🥈"} {i === 2 && "🥉"}{" "}
-                        {i + 1}
-                      </td>
-                      <td className="px-3 py-2">
-                        {p.name} {p.id === currentUserId && "(You)"}
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        {formatTime(p.timeScore)}
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        {p.completionScore.toFixed(1)}
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        {p.accuracyScore.toFixed(1)}
-                      </td>
-                      <td className="px-3 py-2 text-right font-bold text-purple-700">
-                        {p.aggregate.toFixed(1)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {/* Player Table - Mobile Responsive */}
+            <div className="overflow-x-auto -mx-3 sm:mx-0">
+              <div className="min-w-full inline-block align-middle">
+                <div className="overflow-hidden border border-gray-300 rounded-xl">
+                  <table className="min-w-full text-xs sm:text-sm">
+                    <thead className="bg-gray-100 text-gray-700 font-semibold">
+                      <tr>
+                        <th className="px-2 sm:px-3 py-2 text-left">#</th>
+                        <th className="px-2 sm:px-3 py-2 text-left">Player</th>
+                        <th className="px-2 sm:px-3 py-2 text-right hidden sm:table-cell">
+                          Time
+                        </th>
+                        <th className="px-2 sm:px-3 py-2 text-right hidden md:table-cell">
+                          Completion
+                        </th>
+                        <th className="px-2 sm:px-3 py-2 text-right hidden md:table-cell">
+                          Accuracy
+                        </th>
+                        <th className="px-2 sm:px-3 py-2 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedPlayers.map((p, i) => (
+                        <tr
+                          key={p.id}
+                          className={`border-t hover:bg-gray-50 cursor-pointer ${
+                            p.id === currentUserId ? "bg-blue-50" : ""
+                          }`}
+                          onClick={() => setOpenBoard(p)}
+                        >
+                          <td className="px-2 sm:px-3 py-2">
+                            <div className="flex items-center">
+                              {i === 0 && <span className="mr-1">🥇</span>}
+                              {i === 1 && <span className="mr-1">🥈</span>}
+                              {i === 2 && <span className="mr-1">🥉</span>}
+                              <span className="text-xs">{i + 1}</span>
+                            </div>
+                          </td>
+                          <td className="px-2 sm:px-3 py-2">
+                            <div className="truncate max-w-[120px] sm:max-w-none">
+                              {p.name}{" "}
+                              {p.id === currentUserId && (
+                                <span className="text-xs text-blue-600">
+                                  (You)
+                                </span>
+                              )}
+                            </div>
+                            {/* Mobile-only stats */}
+                            <div className="sm:hidden text-[10px] text-gray-500 mt-1">
+                              Time: {formatTime(p.timeScore)} | C:{" "}
+                              {p.completionScore.toFixed(0)} | A:{" "}
+                              {p.accuracyScore.toFixed(0)}
+                            </div>
+                          </td>
+                          <td className="px-2 sm:px-3 py-2 text-right hidden sm:table-cell">
+                            {formatTime(p.timeScore)}
+                          </td>
+                          <td className="px-2 sm:px-3 py-2 text-right hidden md:table-cell">
+                            {p.completionScore.toFixed(1)}
+                          </td>
+                          <td className="px-2 sm:px-3 py-2 text-right hidden md:table-cell">
+                            {p.accuracyScore.toFixed(1)}
+                          </td>
+                          <td className="px-2 sm:px-3 py-2 text-right font-bold text-purple-700">
+                            {p.aggregate.toFixed(1)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -428,7 +464,6 @@ const ScoreboardModal = ({
         db={db}
         appId={appId}
         onToggleCorrect={() => {
-          // Refresh players data when scores change
           refreshPlayersData();
         }}
       />
@@ -456,49 +491,41 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
   // Improved timestamp extraction function
   const extractTimestamp = (gameData) => {
     const timestampFields = [
-      'createdAt',
-      'startTime', 
-      'scoringEndTime',
-      'endedAt'
+      "createdAt",
+      "startTime",
+      "scoringEndTime",
+      "endedAt",
     ];
 
     for (const field of timestampFields) {
       if (gameData[field]) {
         try {
-          // Handle Firestore Timestamp objects
           if (typeof gameData[field].toMillis === "function") {
             const timestamp = gameData[field].toMillis();
-            // Validate timestamp is reasonable (not in future, not before 2020)
             const now = Date.now();
-            const year2020 = new Date('2020-01-01').getTime();
+            const year2020 = new Date("2020-01-01").getTime();
             if (timestamp <= now && timestamp >= year2020) {
               return timestamp;
             }
-          } 
-          // Handle Date objects
-          else if (typeof gameData[field].toDate === "function") {
+          } else if (typeof gameData[field].toDate === "function") {
             const timestamp = gameData[field].toDate().getTime();
             const now = Date.now();
-            const year2020 = new Date('2020-01-01').getTime();
+            const year2020 = new Date("2020-01-01").getTime();
             if (timestamp <= now && timestamp >= year2020) {
               return timestamp;
             }
-          } 
-          // Handle numeric timestamps
-          else if (typeof gameData[field] === "number") {
-            // Check if it's a reasonable timestamp
+          } else if (typeof gameData[field] === "number") {
             const now = Date.now();
-            const year2020 = new Date('2020-01-01').getTime();
+            const year2020 = new Date("2020-01-01").getTime();
             if (gameData[field] <= now && gameData[field] >= year2020) {
               return gameData[field];
             }
-          } 
-          // Handle Firestore timestamp objects with seconds
-          else if (gameData[field].seconds) {
-            const timestamp = gameData[field].seconds * 1000 + 
+          } else if (gameData[field].seconds) {
+            const timestamp =
+              gameData[field].seconds * 1000 +
               (gameData[field].nanoseconds || 0) / 1000000;
             const now = Date.now();
-            const year2020 = new Date('2020-01-01').getTime();
+            const year2020 = new Date("2020-01-01").getTime();
             if (timestamp <= now && timestamp >= year2020) {
               return timestamp;
             }
@@ -509,8 +536,10 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
       }
     }
 
-    // If no valid timestamp found, return null instead of current time
-    console.warn('No valid timestamp found for game:', gameData.id || 'unknown');
+    console.warn(
+      "No valid timestamp found for game:",
+      gameData.id || "unknown"
+    );
     return null;
   };
 
@@ -531,12 +560,10 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
           async (gameDoc) => {
             const gameData = gameDoc.data();
 
-            // Check if user is admin/creator
             const isAdmin =
               gameData.createdBy === currentUserId ||
               gameData.adminId === currentUserId;
 
-            // Check if user is a player
             let isPlayer = false;
             let playerData = null;
             try {
@@ -557,7 +584,6 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
               );
             }
 
-            // Only include games where user participated
             if (!isAdmin && !isPlayer) {
               return null;
             }
@@ -575,27 +601,22 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
         const gameResults = await Promise.all(gameProcessingPromises);
         const userGames = gameResults.filter(Boolean);
 
-        // Sort by most recent first, but handle null timestamps
         userGames.sort((a, b) => {
-          // If both have valid timestamps, sort normally
           if (a.playedAt && b.playedAt) {
             return b.playedAt - a.playedAt;
           }
-          // If only one has a valid timestamp, prioritize it
           if (a.playedAt && !b.playedAt) {
             return -1;
           }
           if (!a.playedAt && b.playedAt) {
             return 1;
           }
-          // If neither has a valid timestamp, sort by game ID
-          return (b.id || '').localeCompare(a.id || '');
+          return (b.id || "").localeCompare(a.id || "");
         });
 
         setGameHistory(userGames);
         setFilteredGames(userGames);
 
-        // Calculate stats
         const totalGames = userGames.length;
         const gamesAsAdmin = userGames.filter(
           (g) => g.userRole === "admin"
@@ -632,7 +653,6 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
       playerData
     ) => {
       try {
-        // Get all players for this game
         const playersRef = collection(
           db,
           `artifacts/${appId}/public/data/bingoGames/${gameDoc.id}/players`
@@ -643,13 +663,11 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
           ...doc.data(),
         }));
 
-        // Only process if there are actual players (this helps filter out phantom games)
         if (allPlayers.length === 0 && !isAdmin) {
           console.log(`Skipping game ${gameDoc.id} - no players found`);
           return null;
         }
 
-        // Calculate scores and ranking
         const playersWithScores = allPlayers
           .map((p) => {
             const filled = p.checkedSquares?.length || 0;
@@ -672,7 +690,6 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
           playersWithScores.find((p) => p.id === currentUserId)?.totalScore ||
           0;
 
-        // Use improved timestamp extraction
         const playedAt = extractTimestamp(gameData);
 
         return {
@@ -684,7 +701,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
           rank: userRank > 0 ? userRank : null,
           totalPlayers: allPlayers.length,
           userScore: userScore,
-          playedAt: playedAt, // This can now be null for invalid timestamps
+          playedAt: playedAt,
           isWin: userRank === 1 && allPlayers.length > 1,
         };
       } catch (error) {
@@ -696,7 +713,6 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
     loadGameHistory();
   }, [currentUserId, db, appId]);
 
-  // Search and filter effect
   useEffect(() => {
     let filtered = gameHistory;
 
@@ -711,7 +727,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
     }
 
     setFilteredGames(filtered);
-    setCurrentPage(1); // Reset to first page when filtering
+    setCurrentPage(1);
   }, [searchTerm, gameHistory]);
 
   const handleGameClick = async (game) => {
@@ -723,7 +739,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
     if (!timestamp) {
       return "Unknown date";
     }
-    
+
     try {
       const date = new Date(timestamp);
       if (isNaN(date.getTime())) {
@@ -775,7 +791,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-4">
         <div className="text-center">
           <div className="animate-spin h-12 w-12 text-blue-500 mx-auto">
             <svg fill="none" viewBox="0 0 24 24">
@@ -794,7 +810,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
               />
             </svg>
           </div>
-          <p className="mt-4 text-gray-700 text-lg font-semibold">
+          <p className="mt-4 text-gray-700 text-base sm:text-lg font-semibold">
             Loading Dashboard...
           </p>
         </div>
@@ -805,101 +821,109 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-        {/* Header */}
+        {/* Header - Mobile Optimized */}
         <div className="bg-white shadow-sm border-b border-gray-200">
-          <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate("/role")}
-                className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+          <div className="max-w-6xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <button
+                  onClick={() => navigate("/role")}
+                  className="p-1.5 sm:p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                  />
-                </svg>
-              </button>
-              <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-            </div>
-            <div className="flex space-x-3">
-              <button
-                onClick={() => navigate("/player/join")}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                🎮 Join Game
-              </button>
-              <button
-                onClick={() => navigate("/admin/setup")}
-                className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
-              >
-                ➕ Create Game
-              </button>
+                  <svg
+                    className="w-5 h-5 sm:w-6 sm:h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                    />
+                  </svg>
+                </button>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+                  Dashboard
+                </h1>
+              </div>
+              <div className="flex space-x-2 sm:space-x-3 w-full sm:w-auto">
+                <button
+                  onClick={() => navigate("/player/join")}
+                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm sm:text-base"
+                >
+                  <span className="sm:hidden">🎮 Join</span>
+                  <span className="hidden sm:inline">🎮 Join Game</span>
+                </button>
+                <button
+                  onClick={() => navigate("/admin/setup")}
+                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm sm:text-base"
+                >
+                  <span className="sm:hidden">➕ Create</span>
+                  <span className="hidden sm:inline">➕ Create Game</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto px-4 py-8">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-            <div className="bg-white rounded-xl shadow-md p-4 text-center border border-blue-200">
-              <div className="text-2xl font-bold text-blue-600">
+        <div className="max-w-6xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
+          {/* Stats Cards - Mobile Responsive */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
+            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-blue-200">
+              <div className="text-xl sm:text-2xl font-bold text-blue-600">
                 {stats.totalGames}
               </div>
-              <div className="text-sm text-gray-600">Total Games</div>
+              <div className="text-xs sm:text-sm text-gray-600">
+                Total Games
+              </div>
             </div>
-            <div className="bg-white rounded-xl shadow-md p-4 text-center border border-purple-200">
-              <div className="text-2xl font-bold text-purple-600">
+            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-purple-200">
+              <div className="text-xl sm:text-2xl font-bold text-purple-600">
                 {stats.gamesAsAdmin}
               </div>
-              <div className="text-sm text-gray-600">As Admin</div>
+              <div className="text-xs sm:text-sm text-gray-600">As Admin</div>
             </div>
-            <div className="bg-white rounded-xl shadow-md p-4 text-center border border-green-200">
-              <div className="text-2xl font-bold text-green-600">
+            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-green-200 col-span-2 sm:col-span-1">
+              <div className="text-xl sm:text-2xl font-bold text-green-600">
                 {stats.gamesAsPlayer}
               </div>
-              <div className="text-sm text-gray-600">As Player</div>
+              <div className="text-xs sm:text-sm text-gray-600">As Player</div>
             </div>
-            <div className="bg-white rounded-xl shadow-md p-4 text-center border border-yellow-200">
-              <div className="text-2xl font-bold text-yellow-600">
+            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-yellow-200">
+              <div className="text-xl sm:text-2xl font-bold text-yellow-600">
                 {stats.totalWins}
               </div>
-              <div className="text-sm text-gray-600">Wins</div>
+              <div className="text-xs sm:text-sm text-gray-600">Wins</div>
             </div>
-            <div className="bg-white rounded-xl shadow-md p-4 text-center border border-indigo-200">
-              <div className="text-2xl font-bold text-indigo-600">
+            <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 text-center border border-indigo-200">
+              <div className="text-xl sm:text-2xl font-bold text-indigo-600">
                 {stats.averageScore}
               </div>
-              <div className="text-sm text-gray-600">Avg Score</div>
+              <div className="text-xs sm:text-sm text-gray-600">Avg Score</div>
             </div>
           </div>
 
-          {/* Game History */}
+          {/* Game History - Mobile Optimized */}
           <div className="bg-white rounded-xl shadow-lg border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-                <h2 className="text-xl font-bold text-gray-900">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">
                   Game History
                 </h2>
-                <div className="flex items-center space-x-4">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
                   <input
                     type="text"
-                    placeholder="Search by Game ID or Industry..."
+                    placeholder="Search games..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base w-full sm:w-auto"
                   />
                   {searchTerm && (
                     <button
                       onClick={() => setSearchTerm("")}
-                      className="text-gray-500 hover:text-gray-700"
+                      className="text-gray-500 hover:text-gray-700 text-sm self-center sm:self-auto"
                     >
                       Clear
                     </button>
@@ -909,11 +933,11 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
             </div>
 
             {filteredGames.length === 0 ? (
-              <div className="px-6 py-12 text-center">
+              <div className="px-4 sm:px-6 py-8 sm:py-12 text-center">
                 {searchTerm ? (
                   <>
                     <svg
-                      className="w-16 h-16 text-gray-300 mx-auto mb-4"
+                      className="w-12 sm:w-16 h-12 sm:h-16 text-gray-300 mx-auto mb-4"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -925,12 +949,12 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                         d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                       />
                     </svg>
-                    <p className="text-gray-500 text-lg">
+                    <p className="text-gray-500 text-base sm:text-lg">
                       No games found matching "{searchTerm}"
                     </p>
                     <button
                       onClick={() => setSearchTerm("")}
-                      className="mt-2 text-blue-600 hover:text-blue-800"
+                      className="mt-2 text-blue-600 hover:text-blue-800 text-sm sm:text-base"
                     >
                       Clear search
                     </button>
@@ -938,7 +962,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                 ) : (
                   <>
                     <svg
-                      className="w-16 h-16 text-gray-300 mx-auto mb-4"
+                      className="w-12 sm:w-16 h-12 sm:h-16 text-gray-300 mx-auto mb-4"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -950,13 +974,15 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                         d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.02-5.7-2.709M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
                       />
                     </svg>
-                    <p className="text-gray-500 text-lg">No games played yet</p>
-                    <p className="text-gray-400 text-sm mt-2">
+                    <p className="text-gray-500 text-base sm:text-lg">
+                      No games played yet
+                    </p>
+                    <p className="text-gray-400 text-xs sm:text-sm mt-2">
                       Start playing to see your game history!
                     </p>
                     <button
                       onClick={() => navigate("/role")}
-                      className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                      className="mt-4 px-4 sm:px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm sm:text-base"
                     >
                       Play Your First Game
                     </button>
@@ -969,12 +995,13 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                   {currentGames.map((game) => (
                     <div
                       key={game.id}
-                      className="px-6 py-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                      className="px-4 sm:px-6 py-4 hover:bg-gray-50 transition-colors cursor-pointer"
                       onClick={() => handleGameClick(game)}
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-3 sm:space-y-0">
+                        <div className="flex-1 min-w-0">
+                          {/* Status badges - Mobile first */}
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
                             <span
                               className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
                                 game.status
@@ -1003,22 +1030,24 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                             )}
                           </div>
 
-                          <h3 className="font-semibold text-gray-900 mb-1">
+                          <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">
                             Game {game.id}
                           </h3>
 
-                          <div className="text-sm text-gray-600 space-y-1">
-                            <div>
-                              Industry:{" "}
-                              <span className="font-medium">
-                                {game.industry || "Unknown"}
+                          <div className="text-xs sm:text-sm text-gray-600 space-y-1">
+                            <div className="flex flex-wrap gap-x-4 gap-y-1">
+                              <span>
+                                Industry:{" "}
+                                <span className="font-medium">
+                                  {game.industry || "Unknown"}
+                                </span>
                               </span>
-                            </div>
-                            <div>
-                              Grid:{" "}
-                              <span className="font-medium">
-                                {game.gridSize || "Unknown"}×
-                                {game.gridSize || "Unknown"}
+                              <span>
+                                Grid:{" "}
+                                <span className="font-medium">
+                                  {game.gridSize || "Unknown"}×
+                                  {game.gridSize || "Unknown"}
+                                </span>
                               </span>
                             </div>
                             <div>
@@ -1038,13 +1067,14 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                           </div>
                         </div>
 
-                        <div className="flex flex-col items-end space-y-2">
+                        {/* Action buttons - Mobile optimized */}
+                        <div className="flex flex-col sm:flex-col sm:items-end space-y-2 sm:ml-4">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleGameClick(game);
                             }}
-                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                            className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-medium text-center sm:text-right"
                           >
                             View Scoreboard →
                           </button>
@@ -1054,7 +1084,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                                 e.stopPropagation();
                                 navigate(`/score/${game.id}`);
                               }}
-                              className="text-green-600 hover:text-green-800 text-sm font-medium"
+                              className="text-green-600 hover:text-green-800 text-xs sm:text-sm font-medium text-center sm:text-right"
                             >
                               View Results →
                             </button>
@@ -1068,7 +1098,7 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                                   navigate(`/waiting/${game.id}`);
                                 else navigate(`/play/${game.id}`);
                               }}
-                              className="text-green-600 hover:text-green-800 text-sm font-medium"
+                              className="text-green-600 hover:text-green-800 text-xs sm:text-sm font-medium text-center sm:text-right"
                             >
                               {game.status === "waiting"
                                 ? "Rejoin →"
@@ -1081,58 +1111,67 @@ const Dashboard = ({ currentUserId, db, appId, auth, onSignOut }) => {
                   ))}
                 </div>
 
-                {/* Pagination */}
+                {/* Pagination - Mobile Responsive */}
                 {totalPages > 1 && (
-                  <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                    <div className="text-sm text-gray-700">
-                      Showing {startIndex + 1} to{" "}
-                      {Math.min(endIndex, filteredGames.length)} of{" "}
-                      {filteredGames.length} games
-                    </div>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => setCurrentPage(currentPage - 1)}
-                        disabled={currentPage === 1}
-                        className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                      >
-                        Previous
-                      </button>
-                      {Array.from(
-                        { length: Math.min(5, totalPages) },
-                        (_, i) => {
-                          let pageNumber;
-                          if (totalPages <= 5) {
-                            pageNumber = i + 1;
-                          } else if (currentPage <= 3) {
-                            pageNumber = i + 1;
-                          } else if (currentPage >= totalPages - 2) {
-                            pageNumber = totalPages - 4 + i;
-                          } else {
-                            pageNumber = currentPage - 2 + i;
-                          }
+                  <div className="px-4 sm:px-6 py-4 border-t border-gray-200">
+                    <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
+                      <div className="text-xs sm:text-sm text-gray-700 order-2 sm:order-1">
+                        Showing {startIndex + 1} to{" "}
+                        {Math.min(endIndex, filteredGames.length)} of{" "}
+                        {filteredGames.length} games
+                      </div>
+                      <div className="flex items-center space-x-1 sm:space-x-2 order-1 sm:order-2">
+                        <button
+                          onClick={() => setCurrentPage(currentPage - 1)}
+                          disabled={currentPage === 1}
+                          className="px-2 sm:px-3 py-1 border border-gray-300 rounded text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                        >
+                          <span className="sm:hidden">‹</span>
+                          <span className="hidden sm:inline">Previous</span>
+                        </button>
 
-                          return (
-                            <button
-                              key={pageNumber}
-                              onClick={() => setCurrentPage(pageNumber)}
-                              className={`px-3 py-1 border border-gray-300 rounded text-sm ${
-                                currentPage === pageNumber
-                                  ? "bg-blue-500 text-white border-blue-500"
-                                  : "hover:bg-gray-50"
-                              }`}
-                            >
-                              {pageNumber}
-                            </button>
-                          );
-                        }
-                      )}
-                      <button
-                        onClick={() => setCurrentPage(currentPage + 1)}
-                        disabled={currentPage === totalPages}
-                        className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                      >
-                        Next
-                      </button>
+                        {/* Page numbers - Responsive */}
+                        <div className="flex space-x-1">
+                          {Array.from(
+                            { length: Math.min(3, totalPages) },
+                            (_, i) => {
+                              let pageNumber;
+                              if (totalPages <= 3) {
+                                pageNumber = i + 1;
+                              } else if (currentPage <= 2) {
+                                pageNumber = i + 1;
+                              } else if (currentPage >= totalPages - 1) {
+                                pageNumber = totalPages - 2 + i;
+                              } else {
+                                pageNumber = currentPage - 1 + i;
+                              }
+
+                              return (
+                                <button
+                                  key={pageNumber}
+                                  onClick={() => setCurrentPage(pageNumber)}
+                                  className={`px-2 sm:px-3 py-1 border border-gray-300 rounded text-xs sm:text-sm ${
+                                    currentPage === pageNumber
+                                      ? "bg-blue-500 text-white border-blue-500"
+                                      : "hover:bg-gray-50"
+                                  }`}
+                                >
+                                  {pageNumber}
+                                </button>
+                              );
+                            }
+                          )}
+                        </div>
+
+                        <button
+                          onClick={() => setCurrentPage(currentPage + 1)}
+                          disabled={currentPage === totalPages}
+                          className="px-2 sm:px-3 py-1 border border-gray-300 rounded text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                        >
+                          <span className="sm:hidden">›</span>
+                          <span className="hidden sm:inline">Next</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
