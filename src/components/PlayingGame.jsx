@@ -95,9 +95,10 @@ const PlayingGame = ({
         if (nowRemaining <= 0) {
           clearInterval(timerRef.current);
           timerRef.current = null;
-          // Only trigger auto-finish if player hasn't already submitted
+          // Only auto-submit THIS player if they haven't already submitted
+          // Don't call onFinishGame which affects the entire game
           if (!player?.isSubmitted) {
-            onFinishGame(true); // true indicates time ran out
+            handleTimeoutSubmission();
           }
         }
       }, 1000);
@@ -217,6 +218,33 @@ const PlayingGame = ({
     } catch (e) {
       console.error("Error submitting card:", e);
       showError("Failed to submit card.");
+    }
+  };
+
+  const handleTimeoutSubmission = async () => {
+    if (!player || player.isSubmitted || !game?.id) return;
+
+    try {
+      // Auto-submit this player with timeout time
+      const timeoutTime = Date.now();
+      
+      await updateDoc(
+        doc(
+          db,
+          `artifacts/${appId}/public/data/bingoGames/${game.id}/players`,
+          currentUserId
+        ),
+        { 
+          isSubmitted: true, 
+          submissionTime: timeoutTime,
+          finishedByTimeout: true // Flag to indicate this was a timeout
+        }
+      );
+      
+      showSuccess("Time's up! Your card has been automatically submitted.");
+    } catch (e) {
+      console.error("Error auto-submitting card:", e);
+      showError("Failed to auto-submit card.");
     }
   };
 
