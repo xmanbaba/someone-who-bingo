@@ -29,6 +29,8 @@ const PlayingGame = ({
 
   const timerRef = useRef(null);
   const timerStartedRef = useRef(false);
+  const gameStartTimeRef = useRef(null);
+  const timerDurationRef = useRef(null);
 
   const getPlayerBoard = (questions, gridSize, checkedSquares) => {
     if (!questions || !gridSize) return [];
@@ -55,34 +57,72 @@ const PlayingGame = ({
 
   /* ---------- TIMER ---------- */
   useEffect(() => {
+    // Clear any existing timer first
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    // Only start timer if game is playing and we have the required data
     if (
       game?.status === "playing" &&
       game.startTime &&
-      game.timerDuration &&
-      !timerStartedRef.current
+      game.timerDuration
     ) {
       const startTime =
         typeof game.startTime.toMillis === "function"
           ? game.startTime.toMillis()
           : game.startTime;
+      
+      // Store these values in refs so they don't change during re-renders
+      gameStartTimeRef.current = startTime;
+      timerDurationRef.current = game.timerDuration;
+      
       const initialTime = game.timerDuration * 60 * 1000;
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, initialTime - elapsed);
+      
       setTimeRemaining(remaining);
       timerStartedRef.current = true;
 
+      // Start the interval timer
       timerRef.current = setInterval(() => {
-        const nowElapsed = Date.now() - startTime;
-        const nowRemaining = Math.max(0, initialTime - nowElapsed);
+        const nowElapsed = Date.now() - gameStartTimeRef.current;
+        const nowRemaining = Math.max(0, (timerDurationRef.current * 60 * 1000) - nowElapsed);
+        
         setTimeRemaining(nowRemaining);
+        
         if (nowRemaining <= 0) {
           clearInterval(timerRef.current);
-          onFinishGame(true);
+          timerRef.current = null;
+          // Only trigger auto-finish if player hasn't already submitted
+          if (!player?.isSubmitted) {
+            onFinishGame(true); // true indicates time ran out
+          }
         }
       }, 1000);
+    } else {
+      // Reset timer state if game is not in playing status
+      timerStartedRef.current = false;
+      setTimeRemaining(0);
     }
-    return () => timerRef.current && clearInterval(timerRef.current);
-  }, [game?.status, game?.startTime, game?.timerDuration, onFinishGame]);
+
+    // Cleanup function
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [game?.status, game?.startTime, game?.timerDuration, game?.id]); // Removed onFinishGame and player from dependencies
+
+  // Separate effect to handle when player submits
+  useEffect(() => {
+    if (player?.isSubmitted && timerRef.current) {
+      // Keep timer running for display purposes, but don't auto-finish for this player
+      // The timer will still show for other players who haven't submitted
+    }
+  }, [player?.isSubmitted]);
 
   const formatTime = (ms) => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -158,21 +198,29 @@ const PlayingGame = ({
     if (!player || player.isSubmitted || !game?.id) return;
 
     try {
+      // Record the exact submission time for this specific player
+      const submissionTime = Date.now();
+      
       await updateDoc(
         doc(
           db,
           `artifacts/${appId}/public/data/bingoGames/${game.id}/players`,
           currentUserId
         ),
-        { isSubmitted: true, submissionTime: Date.now() }
+        { 
+          isSubmitted: true, 
+          submissionTime: submissionTime // Each player gets their own submission time
+        }
       );
+      
+      //showSuccess("Card submitted successfully!");
     } catch (e) {
       console.error("Error submitting card:", e);
       showError("Failed to submit card.");
     }
   };
 
-  const handleAdminEndGame = () => onFinishGame(false);
+  const handleAdminEndGame = () => onFinishGame(false); // false indicates admin ended, not timeout
 
   /* ---------- RENDER ---------- */
   return (
@@ -205,7 +253,7 @@ const PlayingGame = ({
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                     />
                   </svg>
-                </div>
+                  </div>
               </div>
             ) : (
               <div className="space-y-4">
