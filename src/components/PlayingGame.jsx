@@ -95,10 +95,17 @@ const PlayingGame = ({
         if (nowRemaining <= 0) {
           clearInterval(timerRef.current);
           timerRef.current = null;
-          // Only auto-submit THIS player if they haven't already submitted
-          // Don't call onFinishGame which affects the entire game
+          
+          // Auto-submit any players who haven't submitted yet
           if (!player?.isSubmitted) {
             handleTimeoutSubmission();
+          }
+          
+          // Check if this is the admin, and if so, end the game after a brief delay
+          if (game.adminId === currentUserId) {
+            setTimeout(() => {
+              onFinishGame(true); // Admin triggers game end when timer expires
+            }, 2000); // 2 second delay to allow final submissions
           }
         }
       }, 1000);
@@ -116,6 +123,17 @@ const PlayingGame = ({
       }
     };
   }, [game?.status, game?.startTime, game?.timerDuration, game?.id]); // Removed onFinishGame and player from dependencies
+
+  // Check if all players have submitted to end game early
+  useEffect(() => {
+    if (game?.status === "playing" && gamePlayers && gamePlayers.length > 0) {
+      const allSubmitted = gamePlayers.every(p => p.isSubmitted);
+      if (allSubmitted) {
+        // All players have submitted, end the game
+        setTimeout(() => onFinishGame(false), 1000); // Small delay to ensure UI updates
+      }
+    }
+  }, [gamePlayers, game?.status, onFinishGame]);
 
   // Separate effect to handle when player submits
   useEffect(() => {
@@ -225,8 +243,16 @@ const PlayingGame = ({
     if (!player || player.isSubmitted || !game?.id) return;
 
     try {
-      // Auto-submit this player with timeout time
-      const timeoutTime = Date.now();
+      // Calculate the actual elapsed time from game start
+      const gameStartTime = typeof game.startTime.toMillis === "function" 
+        ? game.startTime.toMillis() 
+        : game.startTime;
+      
+      const elapsedTime = Date.now() - gameStartTime;
+      const maxTime = game.timerDuration * 60 * 1000; // Convert minutes to milliseconds
+      
+      // Use the full timer duration as submission time for timeout
+      const submissionTime = gameStartTime + maxTime;
       
       await updateDoc(
         doc(
@@ -236,11 +262,12 @@ const PlayingGame = ({
         ),
         { 
           isSubmitted: true, 
-          submissionTime: timeoutTime,
+          submissionTime: submissionTime,
           finishedByTimeout: true // Flag to indicate this was a timeout
         }
       );
       
+      console.log(`Player ${currentUserId} auto-submitted at timeout: ${maxTime}ms`);
       showSuccess("Time's up! Your card has been automatically submitted.");
     } catch (e) {
       console.error("Error auto-submitting card:", e);
