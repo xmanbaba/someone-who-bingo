@@ -252,7 +252,7 @@ const PlayingGame = ({
       const maxTime = game.timerDuration * 60 * 1000; // Convert minutes to milliseconds
       
       // Use the full timer duration as submission time for timeout
-      const submissionTime = gameStartTime + maxTime;
+      const submissionTime = Date.now();
       
       await updateDoc(
         doc(
