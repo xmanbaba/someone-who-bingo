@@ -149,95 +149,115 @@ export default function PublicScoreboard() {
     };
   }, [appId, gameId]);
 
-  const computePlayerScore = (player, gameData) => {
-    const filled = player?.checkedSquares?.length || 0;
-    const correct = (player?.checkedSquares || []).filter(
-      (s) => s.correct === true
-    ).length;
+  /* ---------- Compute Player Score ---------- */
+const computePlayerScore = (player, gameData) => {
+  const filled = player?.checkedSquares?.length || 0;
+  const correct = (player?.checkedSquares || []).filter(
+    (s) => s.correct === true
+  ).length;
 
-    const gridSize = gameData?.gridSize || 5;
-    const totalSquares = gridSize * gridSize;
+  const gridSize = gameData?.gridSize || 5;
+  const totalSquares = gridSize * gridSize;
 
-    const completionScore = (filled / totalSquares) * 40;
-    const accuracyScore = filled === 0 ? 0 : (correct / filled) * 60;
+  const completionScore = (filled / totalSquares) * 40;
+  const accuracyScore = filled === 0 ? 0 : (correct / filled) * 60;
 
-    // Enhanced time score calculation (same as main Scoreboard)
-    let timeScore = Infinity;
+  let timeSpent = null;
 
-    try {
-      let startTime = null;
-      let endTime = null;
+  try {
+    let startTime = null;
+    let endTime = null;
 
-      // Get start time from various sources
-      if (player?.startTime) {
-        if (typeof player.startTime.toMillis === "function") {
-          startTime = player.startTime.toMillis();
-        } else if (typeof player.startTime === "number") {
-          startTime = player.startTime;
-        } else if (player.startTime.seconds) {
-          startTime =
-            player.startTime.seconds * 1000 +
-            (player.startTime.nanoseconds || 0) / 1000000;
-        }
+    /* ---------- Start Time ---------- */
+    if (player?.startTime) {
+      if (typeof player.startTime.toMillis === "function") {
+        startTime = player.startTime.toMillis();
+      } else if (typeof player.startTime === "number") {
+        startTime = player.startTime;
+      } else if (player.startTime.seconds) {
+        startTime =
+          player.startTime.seconds * 1000 +
+          (player.startTime.nanoseconds || 0) / 1000000;
       }
-
-      // Fallback to game start time
-      if (!startTime && gameData?.startTime) {
-        if (typeof gameData.startTime.toMillis === "function") {
-          startTime = gameData.startTime.toMillis();
-        } else if (typeof gameData.startTime === "number") {
-          startTime = gameData.startTime;
-        } else if (gameData.startTime.seconds) {
-          startTime =
-            gameData.startTime.seconds * 1000 +
-            (gameData.startTime.nanoseconds || 0) / 1000000;
-        }
-      }
-
-      // Get end time
-      if (player?.endTime) {
-        if (typeof player.endTime.toMillis === "function") {
-          endTime = player.endTime.toMillis();
-        } else if (typeof player.endTime === "number") {
-          endTime = player.endTime;
-        } else if (player.endTime.seconds) {
-          endTime =
-            player.endTime.seconds * 1000 +
-            (player.endTime.nanoseconds || 0) / 1000000;
-        }
-      }
-
-      // Fallback to submission time
-      if (!endTime && player?.submissionTime) {
-        if (typeof player.submissionTime.toMillis === "function") {
-          endTime = player.submissionTime.toMillis();
-        } else if (typeof player.submissionTime === "number") {
-          endTime = player.submissionTime;
-        } else if (player.submissionTime.seconds) {
-          endTime =
-            player.submissionTime.seconds * 1000 +
-            (player.submissionTime.nanoseconds || 0) / 1000000;
-        }
-      }
-
-      // Calculate time if both are available
-      if (startTime && endTime && endTime > startTime) {
-        timeScore = (endTime - startTime) / 1000;
-      }
-    } catch (error) {
-      console.warn("Error calculating time score:", error);
     }
 
-    return {
-      completionScore,
-      accuracyScore,
-      aggregate: completionScore + accuracyScore,
-      timeScore,
-      filled,
-      correct,
-      totalSquares,
-    };
+    if (!startTime && gameData?.startTime) {
+      if (typeof gameData.startTime.toMillis === "function") {
+        startTime = gameData.startTime.toMillis();
+      } else if (typeof gameData.startTime === "number") {
+        startTime = gameData.startTime;
+      } else if (gameData.startTime.seconds) {
+        startTime =
+          gameData.startTime.seconds * 1000 +
+          (gameData.startTime.nanoseconds || 0) / 1000000;
+      }
+    }
+
+    /* ---------- End Time ---------- */
+    if (player?.endTime) {
+      if (typeof player.endTime.toMillis === "function") {
+        endTime = player.endTime.toMillis();
+      } else if (typeof player.endTime === "number") {
+        endTime = player.endTime;
+      } else if (player.endTime.seconds) {
+        endTime =
+          player.endTime.seconds * 1000 +
+          (player.endTime.nanoseconds || 0) / 1000000;
+      }
+    }
+
+    if (!endTime && player?.submissionTime) {
+      if (typeof player.submissionTime.toMillis === "function") {
+        endTime = player.submissionTime.toMillis();
+      } else if (typeof player.submissionTime === "number") {
+        endTime = player.submissionTime;
+      } else if (player.submissionTime.seconds) {
+        endTime =
+          player.submissionTime.seconds * 1000 +
+          (player.submissionTime.nanoseconds || 0) / 1000000;
+      }
+    }
+
+    if (!endTime && gameData?.endedAt) {
+      if (typeof gameData.endedAt.toMillis === "function") {
+        endTime = gameData.endedAt.toMillis();
+      } else if (typeof gameData.endedAt === "number") {
+        endTime = gameData.endedAt;
+      } else if (gameData.endedAt.seconds) {
+        endTime =
+          gameData.endedAt.seconds * 1000 +
+          (gameData.endedAt.nanoseconds || 0) / 1000000;
+      }
+    }
+
+    /* ---------- Time Spent (clamped) ---------- */
+    if (startTime && endTime && endTime > startTime) {
+      const rawSeconds = (endTime - startTime) / 1000;
+      const maxSeconds = gameData?.timerDuration
+        ? gameData.timerDuration * 60
+        : rawSeconds;
+
+      timeSpent = Math.min(rawSeconds, maxSeconds);
+    }
+  } catch (error) {
+    console.warn(
+      "Error calculating time score for player:",
+      player?.name,
+      error
+    );
+  }
+
+  return {
+    completionScore,
+    accuracyScore,
+    aggregate: completionScore + accuracyScore,
+    timeScore:timeSpent,
+    filled,
+    correct,
+    totalSquares,
   };
+};
+
 
   const formatTime = (timeInSeconds) => {
     if (

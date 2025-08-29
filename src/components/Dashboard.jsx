@@ -256,7 +256,11 @@ const ScoreboardModal = ({
       }
 
       if (startTime && endTime && endTime > startTime) {
-        timeScore = (endTime - startTime) / 1000;
+        const rawSeconds = (endTime - startTime) / 1000;
+        const maxSeconds = gameData?.timerDuration
+          ? gameData.timerDuration * 60
+          : rawSeconds;
+        timeScore = Math.min(rawSeconds, maxSeconds); // ✅ clamp
       }
     } catch (error) {
       console.warn("Error calculating time score:", error);
@@ -272,6 +276,7 @@ const ScoreboardModal = ({
       totalSquares,
     };
   };
+
 
   const sortedPlayers = [...playersData]
     .map((p) => ({ ...p, ...computePlayerScore(p, game) }))

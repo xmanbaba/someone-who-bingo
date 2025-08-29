@@ -1,4 +1,4 @@
-// Scoreboard.jsx
+// Scoreboard.jsx - Fixed version without duplicate formatTime
 import React, { useState } from "react";
 import { doc, updateDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
@@ -225,6 +225,8 @@ const Scoreboard = ({
     );
   }
 
+  // Fixed computePlayerScore function
+  // Fixed computePlayerScore function
   const computePlayerScore = (player, gameData) => {
     const filled = player?.checkedSquares?.length || 0;
     const correct = (player?.checkedSquares || []).filter(
@@ -237,8 +239,7 @@ const Scoreboard = ({
     const completionScore = (filled / totalSquares) * 40;
     const accuracyScore = filled === 0 ? 0 : (correct / filled) * 60;
 
-    // Enhanced time score calculation
-    let timeScore = Infinity;
+    let timeSpent = null;
 
     try {
       let startTime = null;
@@ -257,7 +258,6 @@ const Scoreboard = ({
         }
       }
 
-      // fallback to game start
       if (!startTime && gameData?.startTime) {
         if (typeof gameData.startTime.toMillis === "function") {
           startTime = gameData.startTime.toMillis();
@@ -283,7 +283,6 @@ const Scoreboard = ({
         }
       }
 
-      // fallback to submissionTime
       if (!endTime && player?.submissionTime) {
         if (typeof player.submissionTime.toMillis === "function") {
           endTime = player.submissionTime.toMillis();
@@ -296,7 +295,6 @@ const Scoreboard = ({
         }
       }
 
-      // fallback to game endedAt
       if (!endTime && gameData?.endedAt) {
         if (typeof gameData.endedAt.toMillis === "function") {
           endTime = gameData.endedAt.toMillis();
@@ -309,14 +307,20 @@ const Scoreboard = ({
         }
       }
 
-      // --- Calculate time ---
+      // --- Clamp by game duration or admin end ---
       if (startTime && endTime && endTime > startTime) {
-        timeScore = (endTime - startTime) / 1000; // seconds
+        const rawSeconds = (endTime - startTime) / 1000;
+
+        const maxSeconds = gameData?.timerDuration
+          ? gameData.timerDuration * 60
+          : rawSeconds;
+
+        timeSpent = Math.min(rawSeconds, maxSeconds);
       }
     } catch (error) {
       console.warn(
         "Error calculating time score for player:",
-        player.name,
+        player?.name,
         error
       );
     }
@@ -325,13 +329,33 @@ const Scoreboard = ({
       completionScore,
       accuracyScore,
       aggregate: completionScore + accuracyScore,
-      timeScore,
+      timeSpent,
       filled,
       correct,
       totalSquares,
     };
   };
 
+  // SINGLE formatTime function - handles null values properly
+  const formatTime = (timeInSeconds) => {
+    if (
+      timeInSeconds === null ||
+      timeInSeconds === undefined ||
+      timeInSeconds === Infinity ||
+      isNaN(timeInSeconds) ||
+      timeInSeconds <= 0
+    ) {
+      return "N/A";
+    }
+
+    if (timeInSeconds < 60) {
+      return `${timeInSeconds.toFixed(1)}s`;
+    } else {
+      const minutes = Math.floor(timeInSeconds / 60);
+      const seconds = Math.floor(timeInSeconds % 60);
+      return `${minutes}m ${seconds}s`;
+    }
+  };
 
   const sortedPlayers = [...players]
     .map((p) => ({ ...p, ...computePlayerScore(p, game) }))
@@ -364,24 +388,6 @@ const Scoreboard = ({
         .writeText(shareUrl)
         .then(() => alert("Public scoreboard link copied!"))
         .catch(() => alert("Copy failed – please copy manually"));
-    }
-  };
-
-  const formatTime = (timeInSeconds) => {
-    if (
-      timeInSeconds === Infinity ||
-      isNaN(timeInSeconds) ||
-      timeInSeconds <= 0
-    ) {
-      return "N/A";
-    }
-
-    if (timeInSeconds < 60) {
-      return `${timeInSeconds.toFixed(1)}s`;
-    } else {
-      const minutes = Math.floor(timeInSeconds / 60);
-      const seconds = Math.floor(timeInSeconds % 60);
-      return `${minutes}m ${seconds}s`;
     }
   };
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import SquareDetailsModal from "./SquareDetailsModal";
 import { useNavigate } from "react-router-dom";
 
@@ -225,48 +225,46 @@ const PlayingGame = ({
 
   // Replace the handleTimeoutSubmission function with this corrected version:
 
-  const handleTimeoutSubmission = async () => {
-    if (!player || player.isSubmitted || !game?.id) return;
+ const handleTimeoutSubmission = async () => {
+   try {
+     const playerDocRef = doc(
+       db,
+       `artifacts/${appId}/public/data/bingoGames/${game.id}/players`,
+       currentUserId
+     );
+     const snap = await getDoc(playerDocRef);
 
-    try {
-      // Normalize game startTime into milliseconds
-      const gameStartTime =
-        typeof game.startTime?.toMillis === "function"
-          ? game.startTime.toMillis()
-          : new Date(game.startTime).getTime();
+     if (snap.exists() && snap.data().isSubmitted) {
+       console.log(
+         "⏱️ Skipping timeout auto-submit, player already submitted."
+       );
+       return;
+     }
 
-      const gameDurationMs = game.timerDuration * 60 * 1000;
-      const submissionTime = gameStartTime + gameDurationMs;
+     // proceed with timeout submission
+     const gameStartTime =
+       typeof game.startTime?.toMillis === "function"
+         ? game.startTime.toMillis()
+         : new Date(game.startTime).getTime();
 
-      await updateDoc(
-        doc(
-          db,
-          `artifacts/${appId}/public/data/bingoGames/${game.id}/players`,
-          currentUserId
-        ),
-        {
-          isSubmitted: true,
-          submissionTime,
-          endTime: submissionTime,
-          finishedByTimeout: true,
-          // ✅ ensure startTime always exists
-          startTime: player?.startTime
-            ? typeof player.startTime?.toMillis === "function"
-              ? player.startTime.toMillis()
-              : new Date(player.startTime).getTime()
-            : gameStartTime,
-        }
-      );
+     const gameDurationMs = game.timerDuration * 60 * 1000;
+     const submissionTime = gameStartTime + gameDurationMs;
 
-      console.log(
-        `Player ${currentUserId} auto-submitted at timeout with full duration: ${gameDurationMs}ms`
-      );
-      showSuccess("Time's up! Your card has been automatically submitted.");
-    } catch (e) {
-      console.error("Error auto-submitting card:", e);
-      showError("Failed to auto-submit card.");
-    }
-  };
+     await updateDoc(playerDocRef, {
+       isSubmitted: true,
+       submissionTime,
+       endTime: submissionTime,
+       finishedByTimeout: true,
+       startTime: snap.data()?.startTime || gameStartTime,
+     });
+
+     showSuccess("Time's up! Your card has been automatically submitted.");
+   } catch (e) {
+     console.error("Error auto-submitting card:", e);
+     showError("Failed to auto-submit card.");
+   }
+ };
+
 
   // Also replace the handleSubmitCard function to ensure proper timing:
 
@@ -286,6 +284,7 @@ const PlayingGame = ({
           isSubmitted: true,
           submissionTime,
           endTime: submissionTime,
+          finishedByTimeout: false,
           // ✅ ensure startTime always exists
           startTime: player?.startTime
             ? typeof player.startTime?.toMillis === "function"
