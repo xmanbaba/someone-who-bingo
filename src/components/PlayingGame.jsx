@@ -34,7 +34,6 @@ const PlayingGame = ({
 
   const getPlayerBoard = (questions, gridSize, checkedSquares) => {
     if (!questions || !gridSize) return [];
-
     const board = [];
     const checkedMap = new Map(
       checkedSquares?.map((s) => [s.index, s.names]) || []
@@ -55,95 +54,84 @@ const PlayingGame = ({
       ? getPlayerBoard(game.questions, game.gridSize, player?.checkedSquares)
       : [];
 
-  /* ---------- TIMER ---------- */
+  // ---------- TIMER ----------
   useEffect(() => {
-    // Clear any existing timer first
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
 
-    // Only start timer if game is playing and we have the required data
-    if (
-      game?.status === "playing" &&
-      game.startTime &&
-      game.timerDuration
-    ) {
+    if (game?.status === "playing" && game.startTime && game.timerDuration) {
       const startTime =
         typeof game.startTime.toMillis === "function"
           ? game.startTime.toMillis()
-          : game.startTime;
-      
-      // Store these values in refs so they don't change during re-renders
+          : new Date(game.startTime).getTime();
+
       gameStartTimeRef.current = startTime;
       timerDurationRef.current = game.timerDuration;
-      
-      const initialTime = game.timerDuration * 60 * 1000;
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, initialTime - elapsed);
-      
-      setTimeRemaining(remaining);
+
+      const totalDurationMs = game.timerDuration * 60 * 1000;
+      const initialRemaining = Math.max(
+        0,
+        totalDurationMs - (Date.now() - startTime)
+      );
+
+      setTimeRemaining(initialRemaining);
       timerStartedRef.current = true;
 
-      // Start the interval timer
       timerRef.current = setInterval(() => {
-        const nowElapsed = Date.now() - gameStartTimeRef.current;
-        const nowRemaining = Math.max(0, (timerDurationRef.current * 60 * 1000) - nowElapsed);
-        
-        setTimeRemaining(nowRemaining);
-        
-        if (nowRemaining <= 0) {
+        const now = Date.now();
+        const elapsed = now - gameStartTimeRef.current;
+        const remaining = Math.max(
+          0,
+          timerDurationRef.current * 60 * 1000 - elapsed
+        );
+
+        setTimeRemaining(remaining);
+
+        if (remaining <= 0) {
           clearInterval(timerRef.current);
           timerRef.current = null;
-          
-          // Auto-submit any players who haven't submitted yet
+
           if (!player?.isSubmitted) {
             handleTimeoutSubmission();
           }
-          
-          // Check if this is the admin, and if so, end the game after a brief delay
+
           if (game.adminId === currentUserId) {
-            setTimeout(() => {
-              onFinishGame(true); // Admin triggers game end when timer expires
-            }, 2000); // 2 second delay to allow final submissions
+            setTimeout(() => onFinishGame(true), 2000);
           }
         }
       }, 1000);
     } else {
-      // Reset timer state if game is not in playing status
       timerStartedRef.current = false;
       setTimeRemaining(0);
     }
 
-    // Cleanup function
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
     };
-  }, [game?.status, game?.startTime, game?.timerDuration, game?.id]); // Removed onFinishGame and player from dependencies
+  }, [game?.status, game?.startTime, game?.timerDuration, game?.id]);
 
-  // Check if all players have submitted to end game early
   useEffect(() => {
     if (game?.status === "playing" && gamePlayers && gamePlayers.length > 0) {
-      const allSubmitted = gamePlayers.every(p => p.isSubmitted);
+      const allSubmitted = gamePlayers.every((p) => p.isSubmitted);
       if (allSubmitted) {
-        // All players have submitted, end the game
-        setTimeout(() => onFinishGame(false), 1000); // Small delay to ensure UI updates
+        setTimeout(() => onFinishGame(false), 1000);
       }
     }
   }, [gamePlayers, game?.status, onFinishGame]);
 
-  // Separate effect to handle when player submits
   useEffect(() => {
     if (player?.isSubmitted && timerRef.current) {
-      // Keep timer running for display purposes, but don't auto-finish for this player
-      // The timer will still show for other players who haven't submitted
+      // Timer continues for display, but no auto-submit
     }
   }, [player?.isSubmitted]);
 
   const formatTime = (ms) => {
+    if (!ms || isNaN(ms)) return "00:00";
     const totalSeconds = Math.floor(ms / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -153,7 +141,29 @@ const PlayingGame = ({
     )}`;
   };
 
-  /* ---------- MODAL HANDLERS ---------- */
+  // ---------- ENSURE PLAYER START TIME SAVED ----------
+  useEffect(() => {
+    if (game?.status === "playing" && db && player && !player.startTime) {
+      const startTime = Date.now();
+
+      // Save to Firestore
+      const playerDocRef = doc(
+        db,
+        `artifacts/${appId}/public/data/bingoGames/${game.id}/players`,
+        currentUserId
+      );
+
+      updateDoc(playerDocRef, { startTime })
+        .then(() => {
+          console.log("Player startTime set:", startTime);
+        })
+        .catch((error) => {
+          console.warn("Failed to update player start time:", error);
+        });
+    }
+  }, [game?.status, db, player, appId, game?.id, currentUserId]);
+
+  // ---------- MODAL HANDLERS ----------
   const openModal = (square) => {
     setSelectedSquare(square);
     setModalChecked(square.isChecked);
@@ -213,61 +223,44 @@ const PlayingGame = ({
   const removeName = (name) =>
     setModalNames(modalNames.filter((n) => n !== name));
 
-  const handleSubmitCard = async () => {
-    if (!player || player.isSubmitted || !game?.id) return;
-
-    try {
-      // Record the exact submission time for this specific player
-      const submissionTime = Date.now();
-      
-      await updateDoc(
-        doc(
-          db,
-          `artifacts/${appId}/public/data/bingoGames/${game.id}/players`,
-          currentUserId
-        ),
-        { 
-          isSubmitted: true, 
-          submissionTime: submissionTime // Each player gets their own submission time
-        }
-      );
-      
-      //showSuccess("Card submitted successfully!");
-    } catch (e) {
-      console.error("Error submitting card:", e);
-      showError("Failed to submit card.");
-    }
-  };
+  // Replace the handleTimeoutSubmission function with this corrected version:
 
   const handleTimeoutSubmission = async () => {
     if (!player || player.isSubmitted || !game?.id) return;
 
     try {
-      // Calculate the actual elapsed time from game start
-      const gameStartTime = typeof game.startTime.toMillis === "function" 
-        ? game.startTime.toMillis() 
-        : game.startTime;
-      
-      const elapsedTime = Date.now() - gameStartTime;
-      const maxTime = game.timerDuration * 60 * 1000; // Convert minutes to milliseconds
-      
-      // Use the full timer duration as submission time for timeout
-      const submissionTime = Date.now();
-      
+      // Normalize game startTime into milliseconds
+      const gameStartTime =
+        typeof game.startTime?.toMillis === "function"
+          ? game.startTime.toMillis()
+          : new Date(game.startTime).getTime();
+
+      const gameDurationMs = game.timerDuration * 60 * 1000;
+      const submissionTime = gameStartTime + gameDurationMs;
+
       await updateDoc(
         doc(
           db,
           `artifacts/${appId}/public/data/bingoGames/${game.id}/players`,
           currentUserId
         ),
-        { 
-          isSubmitted: true, 
-          submissionTime: submissionTime,
-          finishedByTimeout: true // Flag to indicate this was a timeout
+        {
+          isSubmitted: true,
+          submissionTime,
+          endTime: submissionTime,
+          finishedByTimeout: true,
+          // ✅ ensure startTime always exists
+          startTime: player?.startTime
+            ? typeof player.startTime?.toMillis === "function"
+              ? player.startTime.toMillis()
+              : new Date(player.startTime).getTime()
+            : gameStartTime,
         }
       );
-      
-      console.log(`Player ${currentUserId} auto-submitted at timeout: ${maxTime}ms`);
+
+      console.log(
+        `Player ${currentUserId} auto-submitted at timeout with full duration: ${gameDurationMs}ms`
+      );
       showSuccess("Time's up! Your card has been automatically submitted.");
     } catch (e) {
       console.error("Error auto-submitting card:", e);
@@ -275,7 +268,41 @@ const PlayingGame = ({
     }
   };
 
-  const handleAdminEndGame = () => onFinishGame(false); // false indicates admin ended, not timeout
+  // Also replace the handleSubmitCard function to ensure proper timing:
+
+  const handleSubmitCard = async () => {
+    if (!player || player.isSubmitted || !game?.id) return;
+
+    try {
+      const submissionTime = Date.now();
+
+      await updateDoc(
+        doc(
+          db,
+          `artifacts/${appId}/public/data/bingoGames/${game.id}/players`,
+          currentUserId
+        ),
+        {
+          isSubmitted: true,
+          submissionTime,
+          endTime: submissionTime,
+          // ✅ ensure startTime always exists
+          startTime: player?.startTime
+            ? typeof player.startTime?.toMillis === "function"
+              ? player.startTime.toMillis()
+              : new Date(player.startTime).getTime()
+            : submissionTime,
+        }
+      );
+
+      showSuccess("Card submitted successfully!");
+    } catch (e) {
+      console.error("Error submitting card:", e);
+      showError("Failed to submit card.");
+    }
+  };
+
+  const handleAdminEndGame = () => onFinishGame(false);
 
   /* ---------- RENDER ---------- */
   return (
@@ -308,7 +335,7 @@ const PlayingGame = ({
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                     />
                   </svg>
-                  </div>
+                </div>
               </div>
             ) : (
               <div className="space-y-4">

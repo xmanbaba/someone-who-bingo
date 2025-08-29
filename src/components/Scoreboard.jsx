@@ -237,63 +237,88 @@ const Scoreboard = ({
     const completionScore = (filled / totalSquares) * 40;
     const accuracyScore = filled === 0 ? 0 : (correct / filled) * 60;
 
-    // Fixed time score calculation - use elapsed time from game start
+    // Enhanced time score calculation
     let timeScore = Infinity;
 
     try {
-      let gameStartTime = null;
-      let playerEndTime = null;
+      let startTime = null;
+      let endTime = null;
 
-      // Get game start time
-      if (gameData?.startTime) {
+      // --- Get start time ---
+      if (player?.startTime) {
+        if (typeof player.startTime.toMillis === "function") {
+          startTime = player.startTime.toMillis();
+        } else if (typeof player.startTime === "number") {
+          startTime = player.startTime;
+        } else if (player.startTime.seconds) {
+          startTime =
+            player.startTime.seconds * 1000 +
+            (player.startTime.nanoseconds || 0) / 1000000;
+        }
+      }
+
+      // fallback to game start
+      if (!startTime && gameData?.startTime) {
         if (typeof gameData.startTime.toMillis === "function") {
-          gameStartTime = gameData.startTime.toMillis();
+          startTime = gameData.startTime.toMillis();
         } else if (typeof gameData.startTime === "number") {
-          gameStartTime = gameData.startTime;
+          startTime = gameData.startTime;
         } else if (gameData.startTime.seconds) {
-          gameStartTime =
+          startTime =
             gameData.startTime.seconds * 1000 +
             (gameData.startTime.nanoseconds || 0) / 1000000;
         }
       }
 
-      // Get player's submission/end time (when they actually finished)
-      if (player?.submissionTime) {
-        if (typeof player.submissionTime.toMillis === "function") {
-          playerEndTime = player.submissionTime.toMillis();
-        } else if (typeof player.submissionTime === "number") {
-          playerEndTime = player.submissionTime;
-        } else if (player.submissionTime.seconds) {
-          playerEndTime =
-            player.submissionTime.seconds * 1000 +
-            (player.submissionTime.nanoseconds || 0) / 1000000;
-        }
-      }
-
-      // Fallback to endTime if submissionTime doesn't exist
-      if (!playerEndTime && player?.endTime) {
+      // --- Get end time ---
+      if (player?.endTime) {
         if (typeof player.endTime.toMillis === "function") {
-          playerEndTime = player.endTime.toMillis();
+          endTime = player.endTime.toMillis();
         } else if (typeof player.endTime === "number") {
-          playerEndTime = player.endTime;
+          endTime = player.endTime;
         } else if (player.endTime.seconds) {
-          playerEndTime =
+          endTime =
             player.endTime.seconds * 1000 +
             (player.endTime.nanoseconds || 0) / 1000000;
         }
       }
 
-      // Calculate elapsed time from game start to when player finished
-      if (gameStartTime && playerEndTime && playerEndTime >= gameStartTime) {
-        const elapsedMs = playerEndTime - gameStartTime;
-        timeScore = elapsedMs / 1000; // Convert to seconds
+      // fallback to submissionTime
+      if (!endTime && player?.submissionTime) {
+        if (typeof player.submissionTime.toMillis === "function") {
+          endTime = player.submissionTime.toMillis();
+        } else if (typeof player.submissionTime === "number") {
+          endTime = player.submissionTime;
+        } else if (player.submissionTime.seconds) {
+          endTime =
+            player.submissionTime.seconds * 1000 +
+            (player.submissionTime.nanoseconds || 0) / 1000000;
+        }
+      }
 
-        // Cap at game duration to prevent showing impossible times
-        const maxTimeSeconds = (gameData?.timerDuration || 10) * 60;
-        timeScore = Math.min(timeScore, maxTimeSeconds);
+      // fallback to game endedAt
+      if (!endTime && gameData?.endedAt) {
+        if (typeof gameData.endedAt.toMillis === "function") {
+          endTime = gameData.endedAt.toMillis();
+        } else if (typeof gameData.endedAt === "number") {
+          endTime = gameData.endedAt;
+        } else if (gameData.endedAt.seconds) {
+          endTime =
+            gameData.endedAt.seconds * 1000 +
+            (gameData.endedAt.nanoseconds || 0) / 1000000;
+        }
+      }
+
+      // --- Calculate time ---
+      if (startTime && endTime && endTime > startTime) {
+        timeScore = (endTime - startTime) / 1000; // seconds
       }
     } catch (error) {
-      console.warn("Error calculating time score:", error);
+      console.warn(
+        "Error calculating time score for player:",
+        player.name,
+        error
+      );
     }
 
     return {
@@ -306,6 +331,7 @@ const Scoreboard = ({
       totalSquares,
     };
   };
+
 
   const sortedPlayers = [...players]
     .map((p) => ({ ...p, ...computePlayerScore(p, game) }))
@@ -415,7 +441,7 @@ const Scoreboard = ({
                     {p.name} {p.id === currentUserId && "(You)"}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    {formatTime(p.timeScore)}
+                    {formatTime(p.timeSpent)}
                   </td>
                   <td className="px-3 py-2 text-right">
                     {p.completionScore.toFixed(1)}

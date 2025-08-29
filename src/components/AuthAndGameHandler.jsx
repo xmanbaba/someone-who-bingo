@@ -154,27 +154,25 @@ const AuthAndGameHandler = ({ children, showMessageModal, onSignOut }) => {
         // Only record start time if player doesn't already have one
         // This prevents overwriting the actual start time when status changes
         if (db && playerData && !playerData.startTime) {
-          // Use the game's start time as the player's start time
-          // This ensures all players have the same reference point
-          const gameStartTime =
-            gameData.startTime?.toMillis?.() ||
-            gameData.startTime ||
-            Date.now();
+         const startTime = Date.now();
+         saveSession({ [SESSION_KEYS.PLAYER_START_TIME]: startTime });
 
-          const playerDocRef = doc(
-            db,
-            `artifacts/${appId}/public/data/bingoGames/${gameId}/players`,
-            currentUserId
-          );
-
-          updateDoc(playerDocRef, {
-            startTime: gameStartTime,
-          }).catch((error) => {
-            console.warn("Failed to update player start time:", error);
-          });
+         // Update player start time in database if not already set
+         if (db && playerData && !playerData.startTime) {
+           const playerDocRef = doc(
+             db,
+             `artifacts/${appId}/public/data/bingoGames/${gameId}/players`,
+             currentUserId
+           );
+           updateDoc(playerDocRef, {
+             startTime: startTime,
+           }).catch((error) => {
+             console.warn("Failed to update player start time:", error);
+           });
+         }
 
           // Also save to session for backup
-          saveSession({ [SESSION_KEYS.PLAYER_START_TIME]: gameStartTime });
+          saveSession({ [SESSION_KEYS.PLAYER_START_TIME]: startTime });
         }
       } else if (gameData.status === "scoring" || gameData.status === "ended") {
         // Record end time for player when game ends
