@@ -84,6 +84,11 @@ const Homepage = () => {
                 How It Works
               </button>
               <button
+                className="text-gray-700 hover:text-purple-600 transition-colors"
+              >
+                <a href="https://youtu.be/_xydMRbdMp8?si=6JVRw7iniWD3jPsZ" target="_blank">Demo</a>
+              </button>
+              <button
                 onClick={() => navigate("/auth")}
                 className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold rounded-lg hover:from-indigo-600 hover:to-purple-600 transition-all transform hover:scale-105"
               >
@@ -707,9 +712,7 @@ const Homepage = () => {
                 </span>
               </summary>
               <p className="mt-4 text-gray-600">
-                Our platform supports unlimited players! We've successfully
-                hosted games with over 500 participants. The system scales
-                automatically to handle any size event.
+                Our platform supports unlimited players! 
               </p>
             </details>
 
@@ -768,6 +771,18 @@ const Homepage = () => {
                 Networking Bingo is free to use! Create unlimited games, invite
                 unlimited players, and access all features without any hidden
                 costs or subscriptions.
+              </p>
+            </details>
+
+            <details className="bg-white rounded-xl p-6 shadow-lg group">
+              <summary className="font-semibold text-lg cursor-pointer list-none flex justify-between items-center">
+                Can I see a demo before signing up?
+                <span className="text-purple-600 group-open:rotate-180 transition-transform">
+                  ▼
+                </span>
+              </summary>
+              <p className="mt-4 text-gray-600">
+                Definitely! Check out our <a target="blank" className="text-blue-600 underline" href="https://youtu.be/_xydMRbdMp8?si=6JVRw7iniWD3jPsZ">demo video</a> to see the platform in action and learn how easy it is to set up and run a game.
               </p>
             </details>
           </div>
@@ -837,6 +852,13 @@ const Homepage = () => {
                     className="hover:text-white transition-colors"
                   >
                     How It Works
+                  </button>
+                </li>
+                 <li>
+                  <button
+                    className="hover:text-white transition-colors text-decoration-none"
+                  >
+                   <a target="blank" href="https://youtu.be/_xydMRbdMp8?si=6JVRw7iniWD3jPsZ">Demo</a> 
                   </button>
                 </li>
               </ul>
