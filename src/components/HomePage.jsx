@@ -83,10 +83,21 @@ const Homepage = () => {
               >
                 How It Works
               </button>
-              <button
-                className="text-gray-700 hover:text-purple-600 transition-colors"
-              >
-                <a href="https://youtu.be/_xydMRbdMp8?si=6JVRw7iniWD3jPsZ" target="_blank">Demo</a>
+              <button className="text-gray-700 hover:text-purple-600 transition-colors">
+                <a
+                  href="https://youtu.be/_xydMRbdMp8?si=6JVRw7iniWD3jPsZ"
+                  target="_blank"
+                >
+                  Demo
+                </a>
+              </button>
+              <button className="text-gray-700 hover:text-purple-600 transition-colors">
+                <a
+                  href="https://1drv.ms/b/c/f9fec7d4c8d15f62/EbYGdBPmFthGly5BCgYzcL8BoW5vea3t_wAyjnTiSzRnGA?e=uT2STN"
+                  target="_blank"
+                >
+                  Download How To Play Guide (PDF)
+                </a>
               </button>
               <button
                 onClick={() => navigate("/auth")}
@@ -147,6 +158,22 @@ const Homepage = () => {
                   className="text-left px-4 py-2 text-gray-700 hover:bg-purple-50 rounded-lg transition-colors"
                 >
                   How It Works
+                </button>
+                <button className="text-left px-4 py-2 text-gray-700 hover:bg-purple-50 rounded-lg transition-colors">
+                  <a
+                    href="https://youtu.be/_xydMRbdMp8?si=6JVRw7iniWD3jPsZ"
+                    target="_blank"
+                  >
+                    Demo
+                  </a>
+                </button>
+                <button className="text-left px-4 py-2 text-gray-700 hover:bg-purple-50 rounded-lg transition-colors">
+                  <a
+                    href="https://1drv.ms/b/c/f9fec7d4c8d15f62/EbYGdBPmFthGly5BCgYzcL8BoW5vea3t_wAyjnTiSzRnGA?e=uT2STN"
+                    target="_blank"
+                  >
+                    Download How To Play Guide (PDF)
+                  </a>
                 </button>
                 <button
                   onClick={() => navigate("/auth")}
@@ -712,7 +739,7 @@ const Homepage = () => {
                 </span>
               </summary>
               <p className="mt-4 text-gray-600">
-                Our platform supports unlimited players! 
+                Our platform supports unlimited players!
               </p>
             </details>
 
@@ -782,7 +809,16 @@ const Homepage = () => {
                 </span>
               </summary>
               <p className="mt-4 text-gray-600">
-                Definitely! Check out our <a target="blank" className="text-blue-600 underline" href="https://youtu.be/_xydMRbdMp8?si=6JVRw7iniWD3jPsZ">demo video</a> to see the platform in action and learn how easy it is to set up and run a game.
+                Definitely! Check out our{" "}
+                <a
+                  target="blank"
+                  className="text-blue-600 underline"
+                  href="https://youtu.be/_xydMRbdMp8?si=6JVRw7iniWD3jPsZ"
+                >
+                  demo video
+                </a>{" "}
+                to see the platform in action and learn how easy it is to set up
+                and run a game.
               </p>
             </details>
           </div>
@@ -854,11 +890,24 @@ const Homepage = () => {
                     How It Works
                   </button>
                 </li>
-                 <li>
-                  <button
-                    className="hover:text-white transition-colors text-decoration-none"
-                  >
-                   <a target="blank" href="https://youtu.be/_xydMRbdMp8?si=6JVRw7iniWD3jPsZ">Demo</a> 
+                <li>
+                  <button className="hover:text-white transition-colors text-decoration-none">
+                    <a
+                      target="blank"
+                      href="https://youtu.be/_xydMRbdMp8?si=6JVRw7iniWD3jPsZ"
+                    >
+                      Demo
+                    </a>
+                  </button>
+                </li>
+                <li>
+                  <button className="hover:text-white transition-colors text-decoration-none">
+                    <a
+                      target="blank"
+                      href="https://1drv.ms/b/c/f9fec7d4c8d15f62/EbYGdBPmFthGly5BCgYzcL8BoW5vea3t_wAyjnTiSzRnGA?e=uT2STN"
+                    >
+                      Download How To Play Guide (PDF)
+                    </a>
                   </button>
                 </li>
               </ul>
