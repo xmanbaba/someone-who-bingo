@@ -33,6 +33,7 @@ const AdminSetup = ({
   const [manualQuestionsInput, setManualQuestionsInput] = useState("");
   const [uploadedFile, setUploadedFile] = useState(null);
   const [currentQuestions, setCurrentQuestions] = useState([]);
+  const [currentProvider, setCurrentProvider] = useState("");
 
   const topics = [
     "General",
@@ -50,7 +51,7 @@ const AdminSetup = ({
     "Real Estate",
     "Pharmaceutical",
   ];
-  const gridSizes = [3, 4, 5, 6, 7]; // ← 3×3 added
+  const gridSizes = [3, 4, 5, 6, 7];
 
   const shuffleArray = (array) => {
     const arr = [...array];
@@ -67,37 +68,266 @@ const AdminSetup = ({
     return arr;
   };
 
-  const generateQuestionsAI = async () => {
-    setLoadingQuestions(true);
+  // OpenRouter API call (using DeepSeek via OpenRouter - WORKING!)
+  const generateWithOpenRouter = async (prompt, numQuestions) => {
+    try {
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${geminiApiKey}`,
+          "HTTP-Referer": window.location.origin,
+        },
+        body: JSON.stringify({
+          model: "deepseek/deepseek-chat",
+          messages: [
+            {
+              role: "system",
+              content: "You are a helpful assistant that generates icebreaker questions. Always respond with valid JSON arrays only."
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          temperature: 0.8,
+          max_tokens: 2048,
+        }),
+      });
 
-    const finalIndustry =
-      selectedIndustry === "Other" ? customIndustry : selectedIndustry;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`OpenRouter Error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+      }
 
-    const prompt = `Generate ${
-      gridSize * gridSize
-    } unique "Find someone who..." bingo statements relevant to the ${finalIndustry} industry. Output a JSON array of strings.`;
+      const data = await response.json();
+      
+      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+        throw new Error("Invalid response structure from OpenRouter");
+      }
+
+      let content = data.choices[0].message.content.trim();
+      
+      // Clean markdown formatting
+      content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      
+      // Parse JSON
+      let questions = JSON.parse(content);
+      
+      if (!Array.isArray(questions)) {
+        throw new Error("Response is not an array");
+      }
+
+      return questions.slice(0, numQuestions);
+    } catch (error) {
+      console.error("OpenRouter failed:", error);
+      throw error;
+    }
+  };
+
+  // Together.ai API call (fallback option if you add a key)
+  const generateWithTogether = async (prompt, numQuestions) => {
+    // Check if Together API key is available
+    const togetherKey = import.meta.env.VITE_TOGETHER_API_KEY;
+    if (!togetherKey || togetherKey === "YOUR_TOGETHER_API_KEY") {
+      throw new Error("Together.ai API key not configured");
+    }
 
     try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
+      const response = await fetch("https://api.together.xyz/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${togetherKey}`,
+        },
+        body: JSON.stringify({
+          model: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+          messages: [
+            {
+              role: "system",
+              content: "You are a helpful assistant that generates icebreaker questions. Always respond with valid JSON arrays only."
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          temperature: 0.8,
+          max_tokens: 2048,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Together.ai Error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+        throw new Error("Invalid response structure from Together.ai");
+      }
+
+      let content = data.choices[0].message.content.trim();
+      
+      // Clean markdown formatting
+      content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      
+      // Parse JSON
+      let questions = JSON.parse(content);
+      
+      if (!Array.isArray(questions)) {
+        throw new Error("Response is not an array");
+      }
+
+      return questions.slice(0, numQuestions);
+    } catch (error) {
+      console.error("Together.ai failed:", error);
+      throw error;
+    }
+  };
+
+  // Gemini API call (improved with better error handling)
+  const generateWithGemini = async (prompt, numQuestions) => {
+    // Only try Gemini if a separate Gemini key is available
+    const geminiKey = import.meta.env.VITE_GEMINI_BACKUP_API_KEY;
+    if (!geminiKey) {
+      throw new Error("Gemini API key not configured");
+    }
+
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" },
+            contents: [{ 
+              role: "user", 
+              parts: [{ text: prompt }] 
+            }],
+            generationConfig: { 
+              temperature: 0.8,
+              maxOutputTokens: 2048,
+            },
           }),
         }
       );
-      const data = await res.json();
-      const arr = JSON.parse(data.candidates[0].content.parts[0].text);
-      setCurrentQuestions(arr.slice(0, gridSize * gridSize));
-    } catch (e) {
-      showError(e.message || "AI generation failed");
-      setCurrentQuestions([]);
-    } finally {
-      setLoadingQuestions(false);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Gemini Error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+      }
+
+      const data = await response.json();
+
+      // Robust error checking
+      if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts) {
+        console.error('Unexpected Gemini response structure:', data);
+        throw new Error('Invalid response format from Gemini API');
+      }
+
+      let text = data.candidates[0].content.parts[0].text.trim();
+      
+      // Clean markdown formatting
+      if (text.startsWith('```json')) {
+        text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+      } else if (text.startsWith('```')) {
+        text = text.replace(/```\n?/g, '');
+      }
+      text = text.trim();
+
+      // Try to parse JSON
+      let questions;
+      try {
+        questions = JSON.parse(text);
+      } catch (parseError) {
+        // Fallback: Extract questions manually
+        const lines = text.split('\n').filter(line => line.trim());
+        questions = lines
+          .map(line => line.trim().replace(/^[\d\.\-\*]+\s*/, '').replace(/^["']|["']$/g, ''))
+          .filter(line => line.toLowerCase().includes('someone who') || line.toLowerCase().includes('find someone'));
+      }
+
+      if (!Array.isArray(questions) || questions.length === 0) {
+        throw new Error('No valid questions generated');
+      }
+
+      return questions.slice(0, numQuestions);
+    } catch (error) {
+      console.error("Gemini failed:", error);
+      throw error;
     }
+  };
+
+  // Main generation function with fallback logic
+  const generateQuestionsAI = async () => {
+    setLoadingQuestions(true);
+    setCurrentProvider("");
+
+    const finalIndustry =
+      selectedIndustry === "Other" ? customIndustry : selectedIndustry;
+
+    if (!finalIndustry) {
+      showError("Please select or enter a topic");
+      setLoadingQuestions(false);
+      return;
+    }
+
+    const numQuestions = gridSize * gridSize;
+    const prompt = `Generate exactly ${numQuestions} unique "Find someone who..." or "Someone who..." bingo statements relevant to ${finalIndustry}. 
+
+Requirements:
+- Each statement should be a conversation starter
+- Make them appropriate for professional settings
+- Ensure they're engaging and fun
+- Return ONLY a JSON array of strings, nothing else
+- No explanations, just the array
+
+Example format:
+["Someone who has worked in ${finalIndustry} for over 10 years", "Someone who speaks three or more languages"]
+
+Generate ${numQuestions} statements now:`;
+
+    // Prioritize OpenRouter (working), then fallbacks
+    const providers = [
+      { name: "OpenRouter (DeepSeek)", fn: generateWithOpenRouter },
+      { name: "Together.ai", fn: generateWithTogether },
+      { name: "Gemini", fn: generateWithGemini },
+    ];
+
+    let lastError = null;
+
+    for (const provider of providers) {
+      try {
+        setCurrentProvider(`Trying ${provider.name}...`);
+        console.log(`Attempting generation with ${provider.name}`);
+        
+        const questions = await provider.fn(prompt, numQuestions);
+        
+        if (questions && questions.length > 0) {
+          setCurrentQuestions(questions);
+          setCurrentProvider(`✅ Generated with ${provider.name}`);
+          setLoadingQuestions(false);
+          
+          // Clear success message after 3 seconds
+          setTimeout(() => setCurrentProvider(""), 3000);
+          return;
+        }
+      } catch (error) {
+        console.error(`${provider.name} failed:`, error);
+        lastError = error;
+        // Continue to next provider
+      }
+    }
+
+    // All providers failed
+    setLoadingQuestions(false);
+    setCurrentProvider("");
+    showError(
+      `All AI providers failed. Last error: ${lastError?.message || 'Unknown error'}. Please use manual entry or file upload.`
+    );
+    setCurrentQuestions([]);
   };
 
   const handleParseManualQuestions = () => {
@@ -117,11 +347,9 @@ const AdminSetup = ({
 
     try {
       if (file.type === "text/plain" || file.name.endsWith(".txt")) {
-        // ✅ TXT
         const text = await file.text();
         processText(text);
       } else if (file.type === "text/csv" || file.name.endsWith(".csv")) {
-        // ✅ CSV
         const text = await file.text();
         const lines = text.split("\n").map((l) => l.split(",")[0]?.trim());
         processText(lines.join("\n"));
@@ -129,7 +357,6 @@ const AdminSetup = ({
         file.type === "application/pdf" ||
         file.name.endsWith(".pdf")
       ) {
-        // ✅ PDF
         const pdf = await pdfjsLib.getDocument(await file.arrayBuffer())
           .promise;
         let text = "";
@@ -144,7 +371,6 @@ const AdminSetup = ({
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
         file.name.endsWith(".docx")
       ) {
-        // ✅ DOCX
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.extractRawText({ arrayBuffer });
         processText(result.value);
@@ -161,7 +387,7 @@ const AdminSetup = ({
       .split("\n")
       .map((l) => l.trim())
       .filter(Boolean)
-      .map((l) => l.replace(/^\d+\.\s*/, "")); // remove numbering like "1. "
+      .map((l) => l.replace(/^\d+\.\s*/, ""));
     if (!list.length) return showError("No valid questions found");
     setCurrentQuestions(list);
   };
@@ -176,13 +402,13 @@ const AdminSetup = ({
       !currentQuestions.length ||
       currentQuestions.length !== gridSize * gridSize
     )
-      return showError(`Need ${gridSize * gridSize} questions`);
+      return showError(`Need exactly ${gridSize * gridSize} questions`);
     if (customTimerDuration <= 0) return showError("Timer must be > 0");
 
     const finalIndustry =
       selectedIndustry === "Other" ? customIndustry : selectedIndustry;
 
-    if (!finalIndustry) return showError("Please select or enter a topic of your choice");
+    if (!finalIndustry) return showError("Please select or enter a topic");
 
     let newGameId;
 
@@ -268,7 +494,7 @@ const AdminSetup = ({
             onChange={(e) => setSelectedIndustry(e.target.value)}
             className="w-full border border-blue-300 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-300"
           >
-            <option value="">Select an industry</option>
+            <option value="">Select a topic</option>
             {topics.map((i) => (
               <option key={i} value={i}>
                 {i}
@@ -333,6 +559,13 @@ const AdminSetup = ({
         >
           {loadingQuestions ? "Generating..." : "✨ Generate AI Questions"}
         </button>
+
+        {/* Provider status */}
+        {currentProvider && (
+          <div className="text-center text-sm text-gray-600 italic">
+            {currentProvider}
+          </div>
+        )}
 
         <div className="relative flex items-center py-2">
           <div className="flex-grow border-t border-gray-300"></div>
@@ -413,7 +646,7 @@ const AdminSetup = ({
           customTimerDuration <= 0 ||
           currentQuestions.length !== gridSize * gridSize
             ? "bg-gray-400 cursor-not-allowed"
-            : "bg-gradient-to-r from-purple-600 to-blue-600 text-white"
+            : "bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:scale-105"
         }`}
       >
         🚀 Create Game
