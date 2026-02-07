@@ -189,6 +189,11 @@ const PlayingGame = ({
         ? [...modalNames, pendingName]
         : modalNames;
 
+    if (modalChecked && namesToSave.length === 0) {
+      showError("Add at least one name before marking this square as found.");
+      return;
+    }
+
     const updated = [...(player?.checkedSquares || [])];
     const existing = updated.find((s) => s.index === selectedSquare.index);
 
