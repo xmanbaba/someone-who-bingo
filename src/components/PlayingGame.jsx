@@ -183,14 +183,20 @@ const PlayingGame = ({
   const saveSquareChanges = async () => {
     if (!selectedSquare || !player?.id || !game?.id) return;
 
+    const pendingName = nameInput.trim();
+    const namesToSave =
+      pendingName && !modalNames.includes(pendingName)
+        ? [...modalNames, pendingName]
+        : modalNames;
+
     const updated = [...(player?.checkedSquares || [])];
     const existing = updated.find((s) => s.index === selectedSquare.index);
 
     if (modalChecked) {
       if (existing) {
-        existing.names = modalNames;
+        existing.names = namesToSave;
       } else {
-        updated.push({ index: selectedSquare.index, names: modalNames });
+        updated.push({ index: selectedSquare.index, names: namesToSave });
       }
     } else {
       const idx = updated.findIndex((s) => s.index === selectedSquare.index);
